@@ -1,0 +1,13 @@
+Dalla pagina Wiki di HipHop per PHP
+
+HipHop trasforma codice sorgente PHP in C++ altamente ottimizzato. E' stato sviluppato da Facebook nel 2010.
+
+HipHop trasforma codice sorgente PHP in C++ e lo compila con g++ per otterne binari. 
+Permette all'utente di scrivere codice in semplice PHP, quindi esegue i sorgenti in modo semanticamente equivalente sacrificando alcune caratteristiche rarametne usate - come eval() - in cambio di migliorate performance. 
+Facebook ha ottenuto una riduzione del 50% dell'uso della CPU per traffico di rete equivalente, confrontando con Apache e PHP. Le API di Facebook possono servire due volte lo stesso traffico con una riduzione del 30% della CPU.
+
+Perché Hip Hop
+
+Uno degli scopi escliciti del progetto era la possibilità di continuare a scrivere logiche complesse direttamente in PHP. Le compagnie con grandi database di codice PHP generalmente riscrivono funionalità complesse, come estensioni PHP, direttamente in C o C++. Facendo questo finiscono con il ridurre il numero di persone capaci di lavorare sull'intero database di codice. Mantenendo la logica in PHP, Facebook è capace di evolvere rapidamente e mantenere un gran numero di persone in grado di lavorare sull'intero database di codice.
+
+HipHop non è la soluzione giusta per chiunque produca applicativi in PHP. Pensiamo che possa essere utile alle aziende con grandi infrastrutture PHP che non vogliono riscrivere completamente la logica in C + C++.
