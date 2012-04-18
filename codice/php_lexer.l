@@ -24,16 +24,27 @@
 %option stack
 
 %{
+/** variabile che tiene traccia della linea di input corrente */
 int lineno = 1;
-/*indica la riga dove è stato aperto un commento di tipo /* o /** che non è stato chiuso ( si veda la riga 499 )*/
+/** indica la riga dove è stato aperto un commento di tipo /* o /** che non è stato chiuso ( si veda la riga 499 )*/
 int comment_start_line = 0;
 %}
 
+/** Definizione della regex che matcha uno o più digit numeriche*/
 LNUM [0-9]+
+/** Definizione della regex che matcha una o più digit numerica negativa, nella forma (-n), con n intero da 0 a 9 */
 NLNUM ("(-")[0-9]+(")")
+/** Definizione della regex che matcha una floating del tipo [n].n oppure n.[n], 
+    dove n è un intero da 0 a 9, e [] indica opzionalità. */
 DNUM ([0-9]*[\.][0-9]+)|([0-9]+[\.][0-9]*)
+/** Definizione della regex che matcha una floating negativa nella forma (-[n].n) oppure (-n.[n]) 
+    dove n è un intero da 0 a 9 e [] indicano opzionalità. */
 NDNUM ("(-")([0-9]*[\.][0-9]+(")"))|("(-"[0-9]+[\.][0-9]*(")"))
+/** Definizione della regex per le label costanti nella forma _ALFA[ALFA|0-9], cioè che iniziano con un underscore 
+    seguito da almeno un letterale char maiuscolo, seguito opzionalmente da letterali maiuscoli o numeri da 0 a 9*/
 CONST_LABEL "_"[A-Z][A-Z0-9_]*
+/** Definizione della regex per le label delle variabili, costituite da almeno un letterale a carattere maiuscolo o minuscolo da
+    A a Z, un underscore, oppure un carattere nel range UNICODE \x7f-\xff */
 LABEL [a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*
 WHITESPACE [ \n\r\t]+
 TABS_AND_SPACES [ \t]*
@@ -43,7 +54,10 @@ ESCAPED_AND_WHITESPACE [\n\t\r #'.:;,()|^&+-/*=%!~<>?@]+
 ANY_CHAR (.|[\n])
 NEWLINE ("\r"|"\n"|"\r\n")
 
+/** Imposta lo scanner per mantenere il numero della linea di input corrente nella variabile globale yylineno */
 %option yylineno
+
+/** Imposta lo scanner per NON chiamare la procedura yywrap() al termine del file di input */
 %option noyywrap
 
 

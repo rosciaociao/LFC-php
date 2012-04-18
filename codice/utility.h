@@ -119,8 +119,7 @@ int isnumeric( char *str )
 //per ogni carattere verifica che sia un numero.
         while ( *str )
         {
-//se anche un solo carattere non è un numero, restituisce zero e
-            interrompe il ciclo.
+//se anche un solo carattere non è un numero, restituisce zero e interrompe il ciclo.
             if ( !isdigit( *str ) )
                 return 0;
             str++;

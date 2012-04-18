@@ -121,8 +121,7 @@ void add_element( char *nameToken, char *element, char *current_type, char *curr
         /*se si tenta di inserire una costante viene sollevato un errore fatale, che blocca la
         compilazione. Si sta cercando di ridefinire una costante.*/
     } else if ( strcmp( exist->element, "constant" ) == 0 ) {
-        printf( "\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: ridefinizione di una
-                costante.\033[00m\n", nr);
+        printf( "\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: ridefinizione di una costante.\033[00m\n", nr);
         printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
         pulizia( );
         exit( 0 );
@@ -371,8 +370,7 @@ element_ptr check_element( char *nameToken, char *offset, int nr, bool read )
 
     } else {
 //se è una variabile di sola lettura o una costante lo aggiungo alle liste T ed Exp ( Espressione ).
-        if ( ( ( strcmp( exist->element, "variable" ) == 0 ) || ( strcmp( exist->element,
-                "constant" ) == 0 ) ) && read ) {
+        if ( ( ( strcmp( exist->element, "variable" ) == 0 ) || ( strcmp( exist->element, "constant" ) == 0 ) ) && read ) {
 //aggiungo il tipo dell'elemento alla lista T.
             put_testo( &T, exist->type );
 //aggiungo il nome dell'elemento alla lista Exp.
@@ -465,8 +463,7 @@ contenuta nell'espressione associata all'istruzione echo;
 void echo_check( char *nameToken, char *offset, int nr )
 {
     int index;
-    char *tmp = " ) ? \"true\" : \"false\""; //variabile utilizzata per gestire la
-    traduzione della stampa di valori booleani.
+    char *tmp = " ) ? \"true\" : \"false\""; //variabile utilizzata per gestire la traduzione della stampa di valori booleani.
     char *el_array;
     element_ptr exist = find_element( nameToken );
     element_ptr exist_index;
