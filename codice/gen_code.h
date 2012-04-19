@@ -15,13 +15,14 @@ direttamente inserite nella definizione della grammatica, contenuta nel file php
 #include <stdio.h> /* Serve per la gestione dei messaggi di errore semantico. */
 #include <string.h> // Serve per la gestione delle stringhe
 
-#define PATH "/home/utente/traduttore/f_out.c" /* Rappresenta il percorso dove verrà salvato il file "f_out.c" contenente la traduzione in C. */
+#define PATH "/home/gianluca/projects/ph2c/f_out.c" /* Rappresenta il percorso dove verrà salvato il file "f_out.c" contenente la traduzione in C. */
 
 char *op_name[] = { "=", "+=", "-=", "*=", "/=", "%=" };/* Un array contenente tutti i possibili operatori di assegnazione. */
 
 /** La funzione apri_file apre il file f_out.c che conterrà il codice intermedio C, frutto della
 compilazione e traduzione.
 Restituisce il puntatore al file. */
+
 FILE *apri_file( ) {
     FILE *f_ptr;
 
@@ -35,8 +36,7 @@ FILE *apri_file( ) {
 
 /** La funzione chiudi_file chiude il file f_out.c precedentemente aperto. */
 void chiudi_file( FILE *f_ptr ) {
-//forza l'effettiva scrittura di eventuali dati presenti nel buffer, prima della
-    chiusura.
+//forza l'effettiva scrittura di eventuali dati presenti nel buffer, prima della chiusura.
     fflush( f_ptr );
 //chiude il file.
     fclose( f_ptr );
@@ -198,8 +198,7 @@ nell'array op_name;
 - type, il tipo dell'array;
 - index_element, l'offset dell'elemento di un array;
 - Exp, la lista contenenti gli elementi delle espressioni. */
-void gen_assignment( FILE* f_ptr, int index, char *left_var, char *type, char *index_element,
-                     testo *Exp, bool array ) {
+void gen_assignment( FILE* f_ptr, int index, char *left_var, char *type, char *index_element, testo *Exp, bool array ) {
     char *expression = gen_expression( Exp );
 
 //Se è una variabile
@@ -208,8 +207,7 @@ void gen_assignment( FILE* f_ptr, int index, char *left_var, char *type, char *i
         if ( check_element_gen_code( left_var ) )
             fprintf( f_ptr, "%s %s %s", left_var, op_name[ index ], expression );
         else
-            fprintf( f_ptr, "%s %s %s %s", type, left_var, op_name[ index ],
-                     expression );
+            fprintf( f_ptr, "%s %s %s %s", type, left_var, op_name[ index ], expression );
     } else {
         fprintf( f_ptr, " %s %s", op_name[index], expression );
     }

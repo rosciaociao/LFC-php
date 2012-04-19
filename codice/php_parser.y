@@ -34,10 +34,8 @@ fprintf ) pendente fra tutte le espressioni avente i
  #define YYDEBUG 1
 
  element_ptr element;
- void yyerror( char *s ); /* Il prototipo della funzione yyerror per la
- visualizzazione degli errori sintattici. */
- extern int yylineno; /* Il numero riga segnalato dalla variabile yylineno di
- Flex. */
+ void yyerror( const char *s ); /* Il prototipo della funzione yyerror per la  visualizzazione degli errori sintattici. */
+ extern int yylineno; /* Il numero riga segnalato dalla variabile yylineno di Flex. */
  char *current_value; /* Il valore corrente di una variabile o costante. */
  char *current_type; /* Il tipo corrente di una variabile o costante. */
  char *index_element = NULL; /* L'offset di un elemento di un array. */
@@ -193,8 +191,7 @@ e Phrase ( tutte contenute nel file utility.h ). */
   { gen_echo( f_ptr, Exp, Phrase ); clear( );
  //Stampa gli avvisi se notice è uguale a 5 ( avviso riservato proprio alla funzione echo ).
  if( notice == 5 ) {
-  printf( "\033[01;33mRiga %i. %s\033[00m", yylineno, warn
-  [ notice ] );
+  printf( "\033[01;33mRiga %i. %s\033[00m", yylineno, warn[ notice ] );
   _warning++;
   notice = -1;
   }
@@ -207,8 +204,7 @@ e Phrase ( tutte contenute nel file utility.h ). */
  fprintf( f_ptr,";\n" );
  //Stampa gli avvisi se notice è diverso da -1 e da 5 ( 5 è un avviso riservato alla funzione echo ).
  if( notice != -1 && notice != 5 ) {
-  printf( "\033[01;33mRiga %i. %s\033[00m", yylineno, warn
-  [ notice ] );
+  printf( "\033[01;33mRiga %i. %s\033[00m", yylineno, warn[ notice ] );
   _warning++;
   notice = -1;
   }
@@ -290,8 +286,7 @@ type_checking sull'omogeneità degli elementi dell'array. Se il controllo ha esi
 l'istruzione è stampata nel file f_out.c e l'array viene aggiunto nella Symbol table.*/
  type_array_checking( T, 'c', NULL, yylineno );
  gen_create_array( f_ptr, $1, current_type, Exp );
- add_element( $1, "array", current_type, NULL,
-dim, yylineno );
+ add_element( $1, "array", current_type, NULL, dim, yylineno );
  array = false;
  } else {
  /*nel caso si stia definendo una variabile è
@@ -301,18 +296,16 @@ altrimenti il valore è impostato a zero. L'istruzione di assegnazione è stampa
 f_out.c e la variabile è aggiunta nella Symbol table.*/
  countelements( T ) > 1 ? current_value = "0" :
 current_value;
- gen_assignment( f_ptr, 0, $1, current_type,
-index_element, Exp, false );
- add_element( $1, "variable", current_type,
-current_value, 0, yylineno );
+ gen_assignment( f_ptr, 0, $1, current_type, index_element, Exp, false );
+ add_element( $1, "variable", current_type, current_value, 0, yylineno );
  }
 
  clear( );
  }
  | element_array '=' {
  /*nel caso si voglia assegnare un valore a un elemento di un array, per
-prima cosa viene controllato l'indice dell'elemento, mediante la funzione check_index*/
-( contenuta nel file symbol_table.h ).
+prima cosa viene controllato l'indice dell'elemento, mediante la funzione check_index
+( contenuta nel file symbol_table.h ).*/
  fprintf( f_ptr, "%s[%s]", $1, index_element ); check_index( $1,
 index_element, yylineno ); } expr {
  /*successivamente mediante la funzione check_element ( posta nel
@@ -350,7 +343,7 @@ check_index( $1, index_element, yylineno ); } expr {
  | w_variable T_MUL_EQUAL expr {
  countelements( T ) > 1 ? current_value = "0" : current_value;
  gen_assignment( f_ptr, 3, $1, current_type, index_element, Exp, false );
- add_element( $1, "variable", current_type, current_value, dim yylineno );
+ add_element( $1, "variable", current_type, current_value, dim, yylineno );
  clear( );
  }
  | element_array T_MUL_EQUAL { fprintf( f_ptr, "%s[%s]", $1, index_element ); check_index( $1, index_element, yylineno ); } expr {
@@ -441,8 +434,7 @@ gen_echo_expression o print_expression del file gen_code.h ). */
  }
  }
  put_testo( &T, "int" );
- //Se è un numero negativo, inserisce nella lista testo il numero
-racchiuso fra parentesi tonde
+ //Se è un numero negativo, inserisce nella lista testo il numero racchiuso fra parentesi tonde
  char *c = strndup($1, 1);
  if( strcmp( c, "-" ) == 0) {
  c = ( char * )malloc( ( strlen( $1 ) + 3 ) * sizeof( char ) );
@@ -586,7 +578,7 @@ l'interruzione della compilazione, chiude ed elimina il file di output f_out.c .
  /* La funzione yyerror stampa un messaggio di errore.
  L'argomento è:
  - s, la stringa contenente il messaggio di errore. */
- void yyerror( char *s ) {
+ void yyerror( const char *s ) {
  _error++;
  printf( "\033[01;31mRiga %i. %s.\033[00m\n", yylineno, s );
  }
