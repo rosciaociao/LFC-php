@@ -1,0 +1,1 @@
+ Lo script "compila.sh" esegue i passi di compilazione del codice e scrive i file di output in questa cartella, in modo da non confonderli con i sorgenti.
