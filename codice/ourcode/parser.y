@@ -2,72 +2,82 @@
 
   /**
   +---------------------------------------------------------------------+
-  | PHP2C -- parser.y	 						|
+  | P2C -- parser.y	 						|
   +---------------------------------------------------------------------+
   |									|
   |  Autori: 	Vito Manghisi 						|
   | 		Gianluca Grasso						|
   +---------------------------------------------------------------------+
   *	
-  * Input file per Bison, generatore analizzato sintattico e semantico per il traduttore da PHP a C
+  * Input file per Bison, generatore del parser per il traduttore da PHP a C
   *
   */
 
 
- /*
- * LALR conflitti shift/reduce e come essi sono stati risolti:
- *
- * - 4 conflitti shift/reduce a causa dell'ambiguità pendente fra le regole ( corretta e con
-errori ) del costrutto if. Risolti mediante shift.
- * - 2 conflitti shift/reduce a causa dell'ambiguità pendente sui costrutti elseif/else.
-Risolti mediante shift.
- * - 6 conflitti shift/reduce a causa delle assegnazioni, semplici o in forma compatta, di
-valori a elementi di un array. Risolti mediante shift.
- * - 1 conflitto shift/reduce a causa dell'ambiguità pendente fra le due regole ( corretta e
-con errori ) del costrutto for. Risolto mediante shift.
- * - 39 conflitti shift/reduce a causa dell'ambiguità ( introdotta con le azioni semantiche
-fprintf ) pendente fra tutte le espressioni avente i
- simboli '(' e ')'. Risolti mediante shift.
+ /**
+ * 	LALR conflitti shift/reduce e come essi sono stati risolti:
+ *	
+ * 	- 4 conflitti shift/reduce a causa dell'ambiguità pendente fra le regole ( corretta e con
+ *	  errori ) del costrutto if. Risolti mediante shift.
+ * 	- 2 conflitti shift/reduce a causa dell'ambiguità pendente sui costrutti elseif/else.
+ *	Risolti mediante shift.
+ * 	- 6 conflitti shift/reduce a causa delle assegnazioni, semplici o in forma compatta, di
+ *	  valori a elementi di un array. Risolti mediante shift.
+ * 	- 1 conflitto shift/reduce a causa dell'ambiguità pendente fra le due regole ( corretta e
+ *	  con errori ) del costrutto for. Risolto mediante shift.
+ * 	- 39 conflitti shift/reduce a causa dell'ambiguità ( introdotta con le azioni semantiche
+ *	fprintf ) pendente fra tutte le espressioni avente i simboli '(' e ')'. Risolti mediante shift.
  *
  */
 
- #include <stdlib.h>
- #include <stdio.h>
- #include <string.h>
  #include "symbolTable.h"
-
  #define YYDEBUG 1
 
  element_ptr element;
- void yyerror( const char *s ); /* Il prototipo della funzione yyerror per la  visualizzazione degli errori sintattici. */
- extern int yylineno; /* Il numero riga segnalato dalla variabile yylineno di Flex. */
- char *current_value; /* Il valore corrente di una variabile o costante. */
- char *current_type; /* Il tipo corrente di una variabile o costante. */
- char *index_element = NULL; /* L'offset di un elemento di un array. */
- int _error = 0, _warning = 0, dim = 0; /* Contatore di errori, di warnings e di elementi di un array (che definiscono la sua dimensione.) */
- int ntab = 0; /* Contatore dei simboli di tabulazione. */
- FILE *f_ptr; /* Puntatore al file che conterrà la traduzione in C. */
+ /* Prototipo della funzione yyerror per la  visualizzazione degli errori sintattici. */
+ void yyerror( const char *s );
+ /* Il numero riga segnalato dalla variabile yylineno di Flex. */
+ extern int yylineno;
+ /** Abilita il debug di Flex */
+ extern int yy_flex_debug;
+ /** Nome del file in input a bison */
+ extern FILE *yyin;
 
- bool array, read; /* Flag usati per discriminare la dichiarazione di un  array, una variabile in lettura o scrittura. */
+ /* Il valore corrente di una variabile o costante. */
+ char *current_value;
+ /* Il tipo corrente di una variabile o costante. */ 
+ char *current_type; 
+ /* L'offset di un elemento di un array. */
+ char *index_element = NULL; 
+ /* Contatore di errori, di warnings e di elementi di un array (che definiscono la sua dimensione.) */
+ int _error = 0, _warning = 0, dim = 0; 
+ /* Contatore dei simboli di tabulazione. */
+ int ntab = 0;
+ /** Puntatore al file di output del parser definito nel file di inclusioni */
+ extern char * fout;
 
- /* La funzione check avvia il controllo di una variabile, costante o elemento di un array.
- Gli argomento sono:
- - nameToken, il nome del simbolo da aggiungere;
- - offset, l'indice dell'elemento;
- - nr, il numero riga segnalato dalla variabile yylineno di Flex;
- - read, specifica se l'elemento è analizzato in lettura o scrittura
- ( solo per elementi di un array ). */
+ /* Flag usati per discriminare la dichiarazione di un  array, una variabile in lettura o scrittura. */
+ bool array, read; 
+
+ /** Funzione per il controllo di una variabile, costante o elemento di un array.
+  *  Gli argomento sono:
+  *    - nameToken, il nome del simbolo da aggiungere;
+  *    - offset, l'indice dell'elemento;
+  *    - nr, il numero riga segnalato dalla variabile yylineno di Flex;
+  *    - read, specifica se l'elemento è analizzato in lettura o scrittura
+  *      ( solo per elementi di un array ). 
+  */
  void check( char *nameToken, char *offset, int nr, bool read )
  {
  element = check_element( nameToken, offset, yylineno, read );
  current_value = element->value;
  }
 
- %}
+%}
 
  %expect 52
 
- //Associazione degli operatori e dei Token
+//Associatività degli operatori e dei Token
  %left ','
  %left T_LOGICAL_OR
  %left T_LOGICAL_AND
@@ -82,12 +92,20 @@ fprintf ) pendente fra tutte le espressioni avente i
  %left '*' '/' '%'
  %right '!'
  %right '~' T_INC T_DEC
- %token T_IF
  %left T_ELSEIF
  %left T_ELSE
  %left T_ENDIF
  %left ')'
- %token <id> T_LNUMBER T_DNUMBER T_STRING T_VARIABLE T_CONSTANT T_NUM_STRING T_ENCAPSED_AND_WHITESPACE T_CONSTANT_ENCAPSED_STRING
+// Definizioni dei TOKEN
+ %token <id> T_LNUMBER 				//token per numeri interi
+ %token <id> T_DNUMBER 				//token per numeri decimali
+ %token <id> T_STRING 				//token per le stringhe
+ %token <id> T_VARIABLE 			//token per le variabili
+ %token <id> T_CONSTANT 			//token per le costanti
+ %token <id> T_NUM_STRING 			//token per numeri in stringhe
+ %token <id> T_ENCAPSED_AND_WHITESPACE 		//token per whitespace e metacaratteri nelle stringhe
+ %token <id> T_CONSTANT_ENCAPSED_STRING		//token per stringhe costanti
+ %token T_IF
  %token T_CHARACTER
  %token T_ECHO
  %token T_DO
@@ -105,37 +123,43 @@ fprintf ) pendente fra tutte le espressioni avente i
  %token T_FINAL
 
  /* L’opzione %union consente di specificare una varietà di tipi di dato che sono usati dalla
-variabile yylval in Flex. L'unico tipo specificato è la
- stringa di caratteri. */
- %union{
- char *id;
- }
+variabile yylval in Flex. L'unico tipo specificato è la stringa di caratteri. */
+%union{
+  char *id;
+}
 
- %type <id> variable r_variable w_variable element_array encaps_var common_scalar;
+%type <id> variable r_variable w_variable element_array encaps_var common_scalar;
 
- %start start;
+ /*%start start;*/
 
- %error-verbose
- %locations
-
+ /** Abilita il tracciamento delle componenti di una regola per Bison */
+%locations
+ /** Abilita il reporting verboso degli errori */
+%error-verbose
+/** Abilita la LookAhead Correction: Bison preso un token dallo scanner sospende le azionie e 
+  * inizia una esplorazione delle regole usando una copia dello stack, se incontra uno shift
+  * riavvia il parsing, se trova un errore (in verbose) mostra la lista dei token attesi
+  */
+/*%define parse.lac none*/
 
  %% /* Regole */
 
  /* Ogni volta che viene letto il simbolo di inizio script PHP "<?php" viene cancellato il file
-f_out.c, frutto di precedenti compilazioni, e viene creato e aperto in modalità scrittura il
-nuovo file. Tutte le le funzioni che iniziano con gen_*, dichiarate nel file gen_code.h, hanno
+tradotto in C, e viene creato e aperto in modalità scrittura il
+nuovo file. Tutte le le funzioni che iniziano con gen_*, dichiarate nel file inclusioni.h, hanno
 il compito di stampare nel file costrutti o espressioni. */
  start:
- T_INIT { cancella_file( ); f_ptr = apri_file( ); gen_header( f_ptr ); }
+ T_INIT { eliminaFile( ); f_ptr = apri_file(); gen_header( f_ptr ); }
  top_statement_list
  ;
 
- /* La funzione fprintf sono utilizzate per stampare nel file f_out.c, contenente la traduzione
+ /* La funzione fprintf sono utilizzate per stampare nel file di uscita in C, contenente la traduzione
 dei sorgenti in PHP in C, parte dei costrutti, parentesi ecc. La funzione gen_tab e il contatore
 ntab servono per stampare nel file i simboli tab "\t" */
  end:
- T_FINAL { fprintf( f_ptr, "\n}" ); chiudi_file( f_ptr ); }
+ T_FINAL { fprintf( f_ptr, "\n}" ); chiudiOutputFile( f_ptr ); }
  ;
+
 
  top_statement_list:
  top_statement_list top_statement
@@ -160,40 +184,40 @@ ntab servono per stampare nel file i simboli tab "\t" */
  ;
 
  /* Tale regola definisce i costrutti primari e le istruzioni principali del PHP. Solo per le
-costanti è utilizzata la funzione add_element ( presente nel file symbol_table.h ) che consente
+costanti è utilizzata la funzione add_element ( presente nel file symbolTable.h ) che consente
 di aggiungere nuovi elementi nella tabella dei simboli, quando esse sono dichiarate mediante il
 token T_DEFINE. Per tutti gli altri costrutti si utilizzano le funzioni fprintf. Nel caso di
 espressioni, expr, e dell'istruzione echo, T_ECHO, viene gestita la visualizzazione dei messaggi
-di warning. Molto spesso è richiamata la funzione clear per svuotare le liste concatenate T, Exp
-e Phrase ( tutte contenute nel file utility.h ). */
+di warning. Molto spesso è richiamata la funzione liberaStrutture per svuotare le liste concatenate listaTipi, espressioni
+e frasi ( tutte contenute nel file inclusioni.h ). */
  unticked_statement:
  '{' inner_statement_list { fprintf( f_ptr, "\t" ); } '}'
- | T_DEFINE '(' T_CONSTANT ',' common_scalar ')' { clear( ); add_element( $3, "constant", current_type, $5, 0, yylineno ); gen_constant( f_ptr, $3, current_type, $5 ); } ';'
- | T_IF '(' expr ')' { gen_if( f_ptr, Exp ); clear( ); ntab++; } statement elseif_list else_single 
+ | T_DEFINE '(' T_CONSTANT ',' common_scalar ')' { liberaStrutture( ); add_element( $3, "constant", current_type, $5, 0, yylineno ); gen_constant( f_ptr, $3, current_type, $5 ); } ';'
+ | T_IF '(' expr ')' { gen_if( f_ptr, espressioni ); liberaStrutture( ); ntab++; } statement elseif_list else_single 
  | T_IF '(' error ')' statement elseif_list else_single { yyerror( "ERRORE SINTATTICO: espressione nel costrutto IF non accettata" ); }
  | T_IF expr ')' statement elseif_list else_single { yyerror( "ERRORE SINTATTICO: '(' mancante nel costrutto IF" ); }
- | T_WHILE '(' expr ')' { gen_while( f_ptr, Exp ); clear( ); } while_statement { fprintf( f_ptr, "}\n" ); }
+ | T_WHILE '(' expr ')' { gen_while( f_ptr, espressioni ); liberaStrutture( ); } while_statement { fprintf( f_ptr, "}\n" ); }
  | T_WHILE '(' error ')' while_statement { yyerror( "ERRORE SINTATTICO: espressione nel costrutto WHILE non accettata" ); }
  | T_WHILE expr ')' while_statement { yyerror( "ERRORE SINTATTICO: '(' mancante nel costrutto WHILE" ); }
  | T_DO { fprintf( f_ptr, "do {\n" ); ntab++; } statement T_WHILE { ntab--; gen_tab( f_ptr, ntab ); fprintf( f_ptr, "} while( " ); } 
-    '(' expr ')' { print_expression( f_ptr, Exp );
-      fprintf( f_ptr, " );\n" ); clear( ); } ';'
+    '(' expr ')' { print_expression( f_ptr, espressioni );
+      fprintf( f_ptr, " );\n" ); liberaStrutture( ); } ';'
  | T_FOR
  '(' { fprintf( f_ptr, "for( " ); }
  for_expr
  ';' { fprintf( f_ptr, "; " ); }
- for_expr { print_expression( f_ptr, Exp ); clear( ); }
+ for_expr { print_expression( f_ptr, espressioni ); liberaStrutture( ); }
  ';' { fprintf( f_ptr, "; " ); }
- for_expr { clear( ); }
+ for_expr { liberaStrutture( ); }
  ')' { fprintf( f_ptr, " ) {\n" ); }
- for_statement { gen_tab( f_ptr, ntab); fprintf( f_ptr, "}\n" ); clear( ); }
+ for_statement { gen_tab( f_ptr, ntab); fprintf( f_ptr, "}\n" ); liberaStrutture( ); }
  | T_FOR '(' error ';' error ';' error ')' for_statement { yyerror( "ERRORE SINTATTICO: un argomento del costrutto FOR non è corretto" ); }
- | T_SWITCH '(' expr ')' { gen_switch( f_ptr, Exp ); clear( ); } switch_case_list { gen_tab( f_ptr, ntab ); ntab--; fprintf( f_ptr, "}\n" ); }
+ | T_SWITCH '(' expr ')' { gen_switch( f_ptr, espressioni ); liberaStrutture( ); } switch_case_list { gen_tab( f_ptr, ntab ); ntab--; fprintf( f_ptr, "}\n" ); }
  | T_SWITCH expr ')' switch_case_list { yyerror( "ERRORE SINTATTICO: '(' mancante nel costrutto SWITCH" ); }
  | T_BREAK ';' { fprintf( f_ptr, "break;\n" ); }
  | T_CONTINUE ';' { fprintf( f_ptr, "continue;\n" ); }
  | T_ECHO echo_expr_list ';' 
-  { gen_echo( f_ptr, Exp, Phrase ); clear( );
+  { gen_echo( f_ptr, espressioni, frasi ); liberaStrutture( );
  //Stampa gli avvisi se notice è uguale a 5 ( avviso riservato proprio alla funzione echo ).
  if( notice == 5 ) {
   printf( "\033[01;33mRiga %i. %s\033[00m", yylineno, warn[ notice ] );
@@ -203,13 +227,13 @@ e Phrase ( tutte contenute nel file utility.h ). */
  }
  | T_ECHO error ';' { yyerror ( "ERRORE SINTATTICO: argomento della funzione ECHO errato" ); }
  | expr ';' {
- if( countelements( Exp ) == 1 )
- print_expression( f_ptr, Exp );
- clear( );
+ if( countelements( espressioni ) == 1 )
+ print_expression( f_ptr, espressioni );
+ liberaStrutture( );
  fprintf( f_ptr,";\n" );
  //Stampa gli avvisi se notice è diverso da -1 e da 5 ( 5 è un avviso riservato alla funzione echo ).
  if( notice != -1 && notice != 5 ) {
-  printf( "\033[01;33mRiga %i. %s\033[00m", yylineno, warn[ notice ] );
+  printf( "[WARNING] Riga %i. %s", yylineno, warn[ notice ] );
   _warning++;
   notice = -1;
   }
@@ -226,12 +250,12 @@ e Phrase ( tutte contenute nel file utility.h ). */
  '{' { ntab++; } case_list '}'
  ;
 
- /* La funzione print_expression ( presente nel file symbol_table.h ) stampa un'espressione
-direttamente nel file f_out.c. */
+ /* La funzione print_expression ( presente nel file symbolTable.h ) stampa un'espressione
+direttamente nel file di uscita della traduzione */
  case_list:
  /* empty */
  | case_list T_CASE { ntab++; gen_tab( f_ptr, ntab ); fprintf( f_ptr, "case " ); }
-expr { print_expression( f_ptr, Exp ); clear( ); } case_separator { fprintf( f_ptr, "\n" ); }
+expr { print_expression( f_ptr, espressioni ); liberaStrutture( ); } case_separator { fprintf( f_ptr, "\n" ); }
 inner_statement_list { ntab--; }
  | case_list T_DEFAULT { ntab++; gen_tab( f_ptr, ntab ); fprintf( f_ptr, "default" ); } case_separator { fprintf( f_ptr, "\n" ); } inner_statement_list { ntab--; }
  ;
@@ -247,7 +271,7 @@ inner_statement_list { ntab--; }
 
  elseif_list:
  /* empty */ { fprintf( f_ptr, "\n" ); gen_tab( f_ptr, ntab ); ntab--; fprintf( f_ptr, "}" ); }
- | elseif_list T_ELSEIF '(' expr ')' { gen_elseif( f_ptr, Exp ); clear( ); ntab++; }
+ | elseif_list T_ELSEIF '(' expr ')' { gen_elseif( f_ptr, espressioni ); liberaStrutture( ); ntab++; }
 statement { fprintf( f_ptr, "\n" ); gen_tab( f_ptr, ntab ); ntab--; fprintf( f_ptr, "}" ); }
  ;
 
@@ -259,13 +283,13 @@ statement { fprintf( f_ptr, "\n" ); gen_tab( f_ptr, ntab ); ntab--; fprintf( f_p
 
  /* Tale sezione amministra l'espressione associata all'istruzione PHP di stampa echo.
  Per le variabili e gli elementi di un array, in sola lettura, e le costanti è richiamata la
-funzione echo_check ( presente nel file symbol_table.h ) al fine di controllare l'esistenza
+funzione echo_check ( presente nel file symbolTable.h ) al fine di controllare l'esistenza
 delle stesse nella symbol table.
  In caso di elementi di un array sarà anche controllato l'offset associato. */
  echo_expr_list:
  '"' encaps_list '"'
  | T_CONSTANT { echo_check( $1, 0, yylineno ); }
- | T_CONSTANT_ENCAPSED_STRING { put_testo( &Exp, $1 ); }
+ | T_CONSTANT_ENCAPSED_STRING { ins_in_lista( &espressioni, $1 ); }
  | r_variable { echo_check( $1, index_element, yylineno ); }
  ;
 
@@ -283,139 +307,193 @@ sinistra, in sola scrittura ( read = false ), mentre, per determinati operatori 
 variabile associata si assume come in sola lettura ( read = true ). */
  expr_without_variable:
  T_CONSTANT '=' expr { isconstant( $1, yylineno ); yyerror( "ERRORE SEMANTICO: non è consentito assegnare un valore a una costante" ); }
- | w_variable '=' expr {
+//inserito da me
+| scalar scalar
+| w_variable '=' '+' expr {
  if( array ) {
  /*nel caso si stia definendo un array ( un
 particolare caso di assegnazione, possibile solo con l'operatore = ) è effettuato un
 type_checking sull'omogeneità degli elementi dell'array. Se il controllo ha esito positivo
-l'istruzione è stampata nel file f_out.c e l'array viene aggiunto nella Symbol table.*/
- type_array_checking( T, 'c', NULL, yylineno );
- gen_create_array( f_ptr, $1, current_type, Exp );
+l'istruzione è stampata nel file tradotto in C e l'array viene aggiunto nella Symbol table.*/
+ type_array_checking( listaTipi, 'c', NULL, yylineno );
+ gen_create_array( f_ptr, $1, current_type, espressioni );
  add_element( $1, "array", current_type, NULL, dim, yylineno );
  array = false;
  } else {
  /*nel caso si stia definendo una variabile è
-effettuato un controllo sulla lista concatenata T ( Tipi ). Se il numero di elementi è pari a
+effettuato un controllo sulla lista concatenata listaTipi ( Tipi ). Se il numero di elementi è pari a
 uno, allora è un'assegnazione semplice quindi è conservato il valore di current_value;
 altrimenti il valore è impostato a zero. L'istruzione di assegnazione è stampata nel file
-f_out.c e la variabile è aggiunta nella Symbol table.*/
- countelements( T ) > 1 ? current_value = "0" :
-current_value;
- gen_assignment( f_ptr, 0, $1, current_type, index_element, Exp, false );
+tradotto in C e la variabile è aggiunta nella Symbol table.*/
+ countelements( listaTipi ) > 1 ? current_value = espressioni->stringa : current_value;
+ gen_assignment( f_ptr, 0, $1, current_type, index_element, espressioni, false );
  add_element( $1, "variable", current_type, current_value, 0, yylineno );
  }
 
- clear( );
+ liberaStrutture( );
+ }
+ | w_variable '=' '-' {ins_in_lista( &espressioni, "-" );} expr {
+ if( array ) {
+ /*nel caso si stia definendo un array ( un
+particolare caso di assegnazione, possibile solo con l'operatore = ) è effettuato un
+type_checking sull'omogeneità degli elementi dell'array. Se il controllo ha esito positivo
+l'istruzione è stampata nel file tradotto in C e l'array viene aggiunto nella Symbol table.*/
+ type_array_checking( listaTipi, 'c', NULL, yylineno );
+ gen_create_array( f_ptr, $1, current_type, espressioni );
+ add_element( $1, "array", current_type, NULL, dim, yylineno );
+ array = false;
+ } else {
+ /*nel caso si stia definendo una variabile è
+effettuato un controllo sulla lista concatenata listaTipi ( Tipi ). Se il numero di elementi è pari a
+uno, allora è un'assegnazione semplice quindi è conservato il valore di current_value;
+altrimenti il valore è impostato a zero. L'istruzione di assegnazione è stampata nel file
+tradotto in C e la variabile è aggiunta nella Symbol table.*/
+ countelements( espressioni ) > 1 ? current_value = espressioni->stringa : current_value;
+//current_value = espressioni->stringa ;
+ gen_assignment( f_ptr, 0, $1, current_type, index_element, espressioni, false );
+ add_element( $1, "variable", current_type, current_value, 0, yylineno );
+ //stampa_lista( listaTipi, "TIPI" ); stampa_lista( espressioni, "espressioni" );
+}
+
+ liberaStrutture( );
+ }
+//fine mio inserimento
+| w_variable '=' expr {
+ if( array ) {
+ /*nel caso si stia definendo un array ( un
+particolare caso di assegnazione, possibile solo con l'operatore = ) è effettuato un
+type_checking sull'omogeneità degli elementi dell'array. Se il controllo ha esito positivo
+l'istruzione è stampata nel file tradotto in C e l'array viene aggiunto nella Symbol table.*/
+ type_array_checking( listaTipi, 'c', NULL, yylineno );
+ gen_create_array( f_ptr, $1, current_type, espressioni );
+ add_element( $1, "array", current_type, NULL, dim, yylineno );
+ array = false;
+ } else {
+ /*nel caso si stia definendo una variabile è
+effettuato un controllo sulla lista concatenata listaTipi ( Tipi ). Se il numero di elementi è pari a
+uno, allora è un'assegnazione semplice quindi è conservato il valore di current_value;
+altrimenti il valore è impostato a zero. L'istruzione di assegnazione è stampata nel file
+tradotto in C e la variabile è aggiunta nella Symbol table.*/
+ countelements( listaTipi ) > 1 ? current_value = "0" :
+current_value;
+ gen_assignment( f_ptr, 0, $1, current_type, index_element, espressioni, false );
+ add_element( $1, "variable", current_type, current_value, 0, yylineno );
+ }
+
+ liberaStrutture( );
  }
  | element_array '=' {
  /*nel caso si voglia assegnare un valore a un elemento di un array, per
 prima cosa viene controllato l'indice dell'elemento, mediante la funzione check_index
-( contenuta nel file symbol_table.h ).*/
+( contenuta nel file symbolTable.h ).*/
  fprintf( f_ptr, "%s[%s]", $1, index_element ); check_index( $1,
 index_element, yylineno ); } expr {
  /*successivamente mediante la funzione check_element ( posta nel
 medesimo file ) si effettua un type_checking. Se i controlli hanno esito positivo, l'istruzione
-di assegnazione sarà stampata nel file f_out.c .*/
+di assegnazione sarà stampata nel file tradotto in C .*/
  check_element( $1, index_element, yylineno, false );
- gen_assignment( f_ptr, 0, $1, current_type, index_element, Exp, true );
- clear( );
+ gen_assignment( f_ptr, 0, $1, current_type, index_element, espressioni, true );
+ liberaStrutture( );
  }
  | error '=' expr { yyerror("ERRORE SINTATTICO: parte sinistra dell'espressione non riconosciuta"); }
  | w_variable T_PLUS_EQUAL expr {
- countelements( T ) > 1 ? current_value = "0" : current_value;
- gen_assignment( f_ptr, 1, $1, current_type, index_element, Exp, false );
+ countelements( listaTipi ) > 1 ? current_value = "0" : current_value;
+ gen_assignment( f_ptr, 1, $1, current_type, index_element, espressioni, false );
  add_element( $1, "variable", current_type, current_value, dim, yylineno );
- clear( );
+ liberaStrutture( );
  }
  | element_array T_PLUS_EQUAL { fprintf( f_ptr, "%s[%s]", $1, index_element );
 check_index( $1, index_element, yylineno ); } expr {
  check_element( $1, index_element, yylineno, false );
- gen_assignment( f_ptr, 1, $1, current_type, index_element, Exp, true );
- clear( );
+ gen_assignment( f_ptr, 1, $1, current_type, index_element, espressioni, true );
+ liberaStrutture( );
  }
  | w_variable T_MINUS_EQUAL expr {
- countelements( T ) > 1 ? current_value = "0" : current_value;
- gen_assignment( f_ptr, 2, $1, current_type, index_element, Exp, false );
+ countelements( listaTipi ) > 1 ? current_value = "0" : current_value;
+ gen_assignment( f_ptr, 2, $1, current_type, index_element, espressioni, false );
  add_element( $1, "variable", current_type, current_value, dim, yylineno );
- clear( );
+ liberaStrutture( );
  }
  | element_array T_MINUS_EQUAL { fprintf( f_ptr, "%s[%s]", $1, index_element );
 check_index( $1, index_element, yylineno ); } expr {
  check_element( $1, index_element, yylineno, false );
- gen_assignment( f_ptr, 2, $1, current_type, index_element, Exp, true );
- clear( );
+ gen_assignment( f_ptr, 2, $1, current_type, index_element, espressioni, true );
+ liberaStrutture( );
  }
  | w_variable T_MUL_EQUAL expr {
- countelements( T ) > 1 ? current_value = "0" : current_value;
- gen_assignment( f_ptr, 3, $1, current_type, index_element, Exp, false );
+ countelements( listaTipi ) > 1 ? current_value = "0" : current_value;
+ gen_assignment( f_ptr, 3, $1, current_type, index_element, espressioni, false );
  add_element( $1, "variable", current_type, current_value, dim, yylineno );
- clear( );
+ liberaStrutture( );
  }
  | element_array T_MUL_EQUAL { fprintf( f_ptr, "%s[%s]", $1, index_element ); check_index( $1, index_element, yylineno ); } expr {
  check_element( $1, index_element, yylineno, false );
- gen_assignment( f_ptr, 3, $1, current_type, index_element, Exp, true );
- clear( );
+ gen_assignment( f_ptr, 3, $1, current_type, index_element, espressioni, true );
+ liberaStrutture( );
  }
  | w_variable T_DIV_EQUAL expr {
- countelements( T ) > 1 ? current_value = "0" : current_value;
- gen_assignment( f_ptr, 4, $1, current_type, index_element, Exp, false );
+ countelements( listaTipi ) > 1 ? current_value = "0" : current_value;
+ gen_assignment( f_ptr, 4, $1, current_type, index_element, espressioni, false );
  add_element( $1, "variable", current_type, current_value, dim, yylineno );
- clear( );
+ liberaStrutture( );
  }
  | element_array T_DIV_EQUAL { fprintf( f_ptr, "%s[%s]", $1, index_element ); check_index( $1, index_element, yylineno ); } expr {
  check_element( $1, index_element, yylineno, false );
- gen_assignment( f_ptr, 4, $1, current_type, index_element, Exp, true );
- clear( );
+ gen_assignment( f_ptr, 4, $1, current_type, index_element, espressioni, true );
+ liberaStrutture( );
  }
  | w_variable T_MOD_EQUAL expr {
- countelements( T ) > 1 ? current_value = "0" : current_value;
- gen_assignment( f_ptr, 5, $1, current_type, index_element, Exp, false );
+ countelements( listaTipi ) > 1 ? current_value = "0" : current_value;
+ gen_assignment( f_ptr, 5, $1, current_type, index_element, espressioni, false );
  add_element( $1, "variable", current_type, current_value, dim, yylineno );
- clear( );
+ liberaStrutture( );
  }
  | element_array T_MOD_EQUAL { fprintf( f_ptr, "%s[%s]", $1, index_element ); check_index( $1, index_element, yylineno ); } expr {
  check_element( $1, index_element, yylineno, false );
- gen_assignment( f_ptr, 5, $1, current_type, index_element, Exp, true );
- clear( );
+ gen_assignment( f_ptr, 5, $1, current_type, index_element, espressioni, true );
+ liberaStrutture( );
  }
  /*di seguito, solo per gli operatori matematici verrà eseguito un controllo dei tipi
 con, eventualmente, visualizzazione di warnings.*/
- | variable { check( $1, index_element, yylineno, true ); } T_INC { put_testo( &Exp, "++" ); type_checking( T, yylineno ); print_expression( f_ptr, Exp ); }
- | T_INC { put_testo( &Exp, "++" ); } variable { check( $3, index_element, yylineno, true ); type_checking( T, yylineno ); print_expression( f_ptr, Exp ); }
- | variable { check( $1, index_element, yylineno, true ); } T_DEC { put_testo( &Exp, "--" ); type_checking( T, yylineno ); print_expression( f_ptr, Exp ); }
- | T_DEC { put_testo( &Exp, "--" ); } variable { check( $3, index_element, yylineno, true ); type_checking( T, yylineno ); print_expression( f_ptr, Exp ); }
- | expr T_BOOLEAN_OR { put_testo( &Exp, " || " ); } expr
+ | variable { check( $1, index_element, yylineno, true ); } T_INC { ins_in_lista( &espressioni, "++" ); type_checking( listaTipi, yylineno ); print_expression( f_ptr, espressioni ); }
+ | T_INC { ins_in_lista( &espressioni, "++" ); } variable { check( $3, index_element, yylineno, true ); type_checking( listaTipi, yylineno ); print_expression( f_ptr, espressioni ); }
+ | variable { check( $1, index_element, yylineno, true ); } T_DEC { ins_in_lista( &espressioni, "--" ); type_checking( listaTipi, yylineno ); print_expression( f_ptr, espressioni ); }
+ | T_DEC { ins_in_lista( &espressioni, "--" ); } variable { check( $3, index_element, yylineno, true ); type_checking( listaTipi, yylineno ); print_expression( f_ptr, espressioni ); }
+ | expr T_BOOLEAN_OR { ins_in_lista( &espressioni, " || " ); } expr
  | expr T_BOOLEAN_OR { yyerror( "ERRORE SINTATTICO: (||) secondo termine dell'espressione mancante" ); }
- | expr T_BOOLEAN_AND { put_testo( &Exp, " && " ); } expr
+ | expr T_BOOLEAN_AND { ins_in_lista( &espressioni, " && " ); } expr
  | expr T_BOOLEAN_AND { yyerror( "ERRORE SINTATTICO: (&&) secondo termine dell'espressione mancante" ); }
- | expr T_LOGICAL_OR { put_testo( &Exp, " OR " ); } expr
+ | expr T_LOGICAL_OR { ins_in_lista( &espressioni, " OR " ); } expr
  | expr T_LOGICAL_OR { yyerror( "ERRORE SINTATTICO: (OR) secondo termine dell'espressione mancante" ); }
- | expr T_LOGICAL_AND { put_testo( &Exp, " AND " ); } expr
+ | expr T_LOGICAL_AND { ins_in_lista( &espressioni, " AND " ); } expr
  | expr T_LOGICAL_AND { yyerror( "ERRORE SINTATTICO: (AND) secondo termine dell'espressione mancante" ); }
- | expr T_IS_EQUAL { put_testo( &Exp, " == " ); } expr
+ | expr T_IS_EQUAL { ins_in_lista( &espressioni, " == " ); } expr
  | expr T_IS_EQUAL { yyerror( "ERRORE SINTATTICO: (==) secondo termine dell'espressione mancante" ); }
- | expr T_IS_NOT_EQUAL { put_testo( &Exp, " != " ); } expr
+ | expr T_IS_NOT_EQUAL { ins_in_lista( &espressioni, " != " ); } expr
  | expr T_IS_NOT_EQUAL { yyerror( "ERRORE SINTATTICO: (!=) secondo termine dell'espressione mancante" ); }
- | expr '<' { put_testo( &Exp, " < " ); } expr { current_type = type_checking( T, yylineno ); }
+ | expr '<' { ins_in_lista( &espressioni, " < " ); } expr { current_type = type_checking( listaTipi, yylineno ); }
  | expr '<' { yyerror( "ERRORE SINTATTICO: (<) secondo termine dell'espressione mancante" ); }
- | expr T_IS_SMALLER_OR_EQUAL { put_testo( &Exp, " <= " ); } expr { current_type = type_checking( T, yylineno ); }
+ | expr T_IS_SMALLER_OR_EQUAL { ins_in_lista( &espressioni, " <= " ); } expr { current_type = type_checking( listaTipi, yylineno ); }
  | expr T_IS_SMALLER_OR_EQUAL { yyerror( "ERRORE SINTATTICO: (<=) secondo termine dell'espressione mancante" ); }
- | expr '>' { put_testo( &Exp, " > " ); } expr { current_type = type_checking( T,yylineno ); }
+ | expr '>' { ins_in_lista( &espressioni, " > " ); } expr { current_type = type_checking( listaTipi,yylineno ); }
  | expr '>' { yyerror( "ERRORE SINTATTICO: (>) secondo termine dell'espressione mancante" ); }
- | expr T_IS_GREATER_OR_EQUAL { put_testo( &Exp, " >= " ); } expr { current_type = type_checking( T, yylineno ); }
+ | expr T_IS_GREATER_OR_EQUAL { ins_in_lista( &espressioni, " >= " ); } expr { current_type = type_checking( listaTipi, yylineno ); }
  | expr T_IS_GREATER_OR_EQUAL { yyerror( "ERRORE SINTATTICO: (>=) secondo termine dell'espressione mancante" ); }
- | expr '+' { put_testo( &Exp, " + " ); } expr { current_type = type_checking( T, yylineno ); }
+ | expr '+' { ins_in_lista( &espressioni, " + " ); } expr { current_type = type_checking( listaTipi, yylineno ); }
  | expr '+' { yyerror( "ERRORE SINTATTICO: (+) secondo termine dell'espressione mancante" ); }
- | expr '-' { put_testo( &Exp, " - " ); } expr { current_type = type_checking( T, yylineno ); }
+ | expr '-' { ins_in_lista( &espressioni, " - " ); } expr { current_type = type_checking( listaTipi, yylineno ); }
  | expr '-' { yyerror( "ERRORE SINTATTICO: (-) secondo termine dell'espressione mancante" ); }
- | expr '*' { put_testo( &Exp, " * " ); } expr { current_type = type_checking( T, yylineno ); }
+ | expr '*' { ins_in_lista( &espressioni, " * " ); } expr { current_type = type_checking( listaTipi, yylineno ); }
  | expr '*' { yyerror( "ERRORE SINTATTICO: (*) secondo termine dell'espressione mancante" ); }
- | expr '/' { put_testo( &Exp, " / " ); } expr { current_type = type_checking( T, yylineno ); }
+ | expr '/' { ins_in_lista( &espressioni, " / " ); } expr { current_type = type_checking( listaTipi, yylineno ); }
  | expr '/' { yyerror( "ERRORE SINTATTICO: (/) secondo termine dell'espressione mancante" ); }
- | expr '%' { put_testo( &Exp, " % " ); } expr { current_type = type_checking( T, yylineno ); }
+ | expr '%' { ins_in_lista( &espressioni, " % " ); } expr { current_type = type_checking( listaTipi, yylineno ); }
  | expr '%' { yyerror( "ERRORE SINTATTICO: (%) secondo termine dell'espressione mancante" ); }
- | '(' { put_testo( &Exp, "(" ); } expr ')' { put_testo( &Exp, ")" ); }
+ | '(' { ins_in_lista( &espressioni, "(" ); } expr ')' { ins_in_lista( &espressioni, ")" ); }
+ | '(' { ins_in_lista( &espressioni, "(" ); } '-' { ins_in_lista( &espressioni, "-" ); } expr ')' { ins_in_lista( &espressioni, ")" ); }
+ | '(' { ins_in_lista( &espressioni, "(" ); } '+' { ins_in_lista( &espressioni, "+" ); } expr ')' { ins_in_lista( &espressioni, ")" ); }
  | expr '?' expr ':' expr
+ //| scalar scalar
  | scalar
  //tale flag discrimina se l'assegnazione a una variabile sia in realtà la definizione diun array.
  | T_ARRAY { array = true; dim = 0; } '(' array_pair_list ')'
@@ -426,74 +504,72 @@ con, eventualmente, visualizzazione di warnings.*/
 definite dall'utente. Si noti che se viene letto un valore in scrittura ( assegnazione ), esso e
 il suo tipo sono memorizzati nelle variabili current_value e cuttent_type. Inoltre se è in
 acquisizione un array viene incrementata la sua dimensione. Sia in caso di scrittura che di
-lettura il valore e il tipo sono rispettivamente aggiunti nelle liste T ( Tipi, per il controllo
-dei tipi mediante le funzioni type_checking e type_array_checking del file symbol_table.h ) e
-Exp ( Espressione, per la generazione di espressioni mediante le funzioni gen_expression,
-gen_echo_expression o print_expression del file gen_code.h ). */
+lettura il valore e il tipo sono rispettivamente aggiunti nelle liste listaTipi ( Tipi, per il controllo
+dei tipi mediante le funzioni type_checking e type_array_checking del file symbolTable.h ) e
+espressioni ( Espressione, per la generazione di espressioni mediante le funzioni gen_expression,
+gen_echo_expression o print_expression del file inclusioni.h ). */
  common_scalar:
  T_LNUMBER {
- if( !read ) {
- current_value = $1; current_type = "int";
- if( array || index_element != NULL ) {
- dim++;
- }
- }
- put_testo( &T, "int" );
- //Se è un numero negativo, inserisce nella lista testo il numero racchiuso fra parentesi tonde
- char *c = strndup($1, 1);
- if( strcmp( c, "-" ) == 0) {
- c = ( char * )malloc( ( strlen( $1 ) + 3 ) * sizeof( char ) );
- strcpy(c, "(");
- strcat(c, $1);
- strcat(c, ")");
- put_testo( &Exp, c );
- free(c);
- } else
- put_testo( &Exp, $1 );
+    if( !read ) {
+      current_value = $1; current_type = "int";
+      if( array || index_element != NULL ) {
+	dim++;
+      }
+    }
+    ins_in_lista( &listaTipi, "int" );
+    //Se è un numero negativo, inserisce nella lista testo il numero racchiuso fra parentesi tonde
+    /*char *c = strndup($1, 1);
+    if( strcmp( c, "-" ) == 0) {
+      c = ( char * )malloc( ( strlen( $1 ) + 3 ) * sizeof( char ) );
+      strcpy(c, "(");
+      strcat(c, $1);
+      strcat(c, ")");
+      ins_in_lista( &espressioni, c );
+      free(c);
+    } else*/
+      ins_in_lista( &espressioni, $1 );
  }
  | T_DNUMBER {
- if( !read ) {
- current_value = $1; current_type = "float";
- if( array || index_element != NULL ) {
- dim++;
- }
- }
-
- put_testo( &T, "float" );
- //Se è un numero negativo, inserisce nella lista testo il numero racchiuso fra parentesi tonde
- char *c = strndup($1, 1);
- if( strcmp( c, "-" ) == 0) {
- c = ( char * )malloc( ( strlen( $1 ) + 3 ) * sizeof( char ) );
- strcpy(c, "(");
- strcat(c, $1);
- strcat(c, ")");
- put_testo( &Exp, c );
- free(c);
- } else
- put_testo( &Exp, $1 );
- }
+    if( !read ) {
+      current_value = $1; current_type = "double";
+      if( array || index_element != NULL ) {
+	dim++;
+      }
+    }
+    ins_in_lista( &listaTipi, "double" );
+      /*
+    //Se è un numero negativo, inserisce nella lista testo il numero racchiuso fra parentesi tonde
+    char *c = strndup($1, 1);
+    if( strcmp( c, "-" ) == 0) {
+      c = ( char * )malloc( ( strlen( $1 ) + 3 ) * sizeof( char ) );
+      strcpy(c, "(");
+      strcat(c, $1);
+      strcat(c, ")");
+      ins_in_lista( &espressioni, c );
+      free(c);
+    } else*/
+    ins_in_lista( &espressioni, $1 );
+  }
  | T_CONSTANT_ENCAPSED_STRING {
- if( !read ) {
- current_value = $1; current_type = "char *";
- if( array || index_element != NULL ) {
- dim++;
- }
- }
-
- put_testo( &T, "char *" );
- put_testo( &Exp, $1 );
+    if( !read ) {
+      current_value = $1; current_type = "char *";
+      if( array || index_element != NULL ) {
+	dim++;
+      }
+    }
+    ins_in_lista( &listaTipi, "char *" );
+    ins_in_lista( &espressioni, $1 );
  }
  | T_STRING {
- current_type = isconstant($1, yylineno);
- if( !read ) {
- current_value = $1;
- if( array || index_element != NULL ) {
- dim++;
- }
- }
-
- put_testo( &T, current_type );
- put_testo( &Exp, $1 );
+    current_type = isconstant($1, yylineno);
+    if( !read ) {
+      current_value = $1;
+      if( array || index_element != NULL ) {
+	dim++;
+      }
+    }
+    ins_in_lista( &listaTipi, current_type );
+    ins_in_lista( &espressioni, $1 );
  }
  ;
 
@@ -512,7 +588,7 @@ gen_echo_expression o print_expression del file gen_code.h ). */
 utilizzate in una espressione o in una parte destra di una qualsiasi operazione di assegnazione,
 semplice o complessa o in un costrutto. Per ogni elemento in sola lettura è effettuato un
 controllo di esistenza nella Symbol table: se il controllo ha esito positivo, il nome
-dell'elemento e il suo tipo sono inseriti rispettivamente nella lista T ( Tipi ) e Exp
+dell'elemento e il suo tipo sono inseriti rispettivamente nella lista T ( Tipi ) e espressioni
 ( Espressione ). */
  expr:
  r_variable { check( $1, index_element, yylineno, true ); }
@@ -544,22 +620,22 @@ dell'elemento e il suo tipo sono inseriti rispettivamente nella lista T ( Tipi )
  ;
 
  non_empty_array_pair_list:
- non_empty_array_pair_list ',' { put_testo( &Exp, ", " ); } scalar
+ non_empty_array_pair_list ',' { ins_in_lista( &espressioni, ", " ); } scalar
  | scalar
  ;
 
  /* Tale regola definisce quali debbano essere gli elementi presenti nell'espressione
 dell'istruzione PHP di stampa echo. Solamente nel caso di variabili, elementi di un array o di
 costanti ( si veda la regola encaps_var ) viene richiamata la funzione echo_check ( del file
-symbol_table.h ) che controlla l'esistenza, nella Symbol table o nella Constant table, nel caso
+symbolTable.h ) che controlla l'esistenza, nella Symbol table o nella Constant table, nel caso
 delle costanti, dei suddetti elementi. Se il controllo ha esito positivo, il nome dell'elemento
-è inserito nella lista Exp ( Espressione ), mentre l'eventuale frase o stringa, nella lista
-Phrase ( Frase ). */
+è inserito nella lista espressioni ( Espressione ), mentre l'eventuale frase o stringa, nella lista
+frasi ( Frase ). */
  encaps_list:
  encaps_list encaps_var { echo_check( $2, index_element, yylineno ); }
- | encaps_list T_STRING { strcat( $2, " " ); put_testo( &Phrase, $2 ); }
- | encaps_list T_NUM_STRING { put_testo( &Phrase, $2 ); }
- | encaps_list T_ENCAPSED_AND_WHITESPACE { put_testo( &Phrase, $2 ); }
+ | encaps_list T_STRING { strcat( $2, " " ); ins_in_lista( &frasi, $2 ); }
+ | encaps_list T_NUM_STRING { ins_in_lista( &frasi, $2 ); }
+ | encaps_list T_ENCAPSED_AND_WHITESPACE { ins_in_lista( &frasi, $2 ); }
  | /* empty */
  ;
 
@@ -575,9 +651,9 @@ Phrase ( Frase ). */
 
 
  /* La funzione pulizia, in caso di errore semantico fatale o per altri errori che comportino
-l'interruzione della compilazione, chiude ed elimina il file di output f_out.c . */
+l'interruzione della compilazione, chiude ed elimina il file di output tradotto in C . */
  void pulizia( ) {
- chiudi_cancella_file( f_ptr );
+ eliminaOutputFile( f_ptr );
  }
 
  /* La funzione yyerror stampa un messaggio di errore.
@@ -588,6 +664,66 @@ l'interruzione della compilazione, chiude ed elimina il file di output f_out.c .
  printf( "\033[01;31mRiga %i. %s.\033[00m\n", yylineno, s );
  }
 
+/** Procedura di avvio del parser per un file in input */
+void startParsing(char * nomeFile){  
+  // apertura in lettura del file php in input
+  if( (yyin = fopen(nomeFile,"r")) != NULL ){
+    stampaMsg("Parsing del file: ", "green");
+    stampaMsg(nomeFile,"yellow");
+    stampaMsg("\n","yellow");
+    // impostazione del nome file C in uscita
+    fout = (char*) malloc( strlen(nomeFile)-2);	
+    strncpy(fout,nomeFile,strlen(nomeFile)-3);
+    strncat(fout,"c",1);
+    stampaMsg("Nome del file di output: ", "green");
+    stampaMsg(fout, "yellow");
+    stampaMsg("\n","yellow");
+    // Avvio del parser
+    yyparse( ); 
+    // Report del processo di parsing
+    if( _error == 0 && _warning == 0 ) {
+      stampaSymbolTable();
+      stampaMsg("\nParsing del file ","green"); 
+      stampaMsg(nomeFile,"yellow");
+      stampaMsg(" riuscito.\n","green"); 
+    } 
+    else if ( _error == 0 && _warning != 0 ) {
+      stampaSymbolTable();
+      stampaMsg("\nParsing del file ","yellow"); 
+      stampaMsg(nomeFile,"yellow");
+      stampaMsg(" riuscito con errori n^","yellow");
+      char * numwarn = (char *) malloc(sizeof(char) * _warning);
+      sprintf(numwarn,"%d",_warning);
+      stampaMsg(numwarn, "red");
+      stampaMsg("\n", "red");
+    }
+    else {
+      stampaMsg("\nE' fallito il parsing del file ","red");
+      stampaMsg(nomeFile,"yellow");
+      stampaMsg(", con errori num^ ","red");
+      char * numerr = (char *) malloc(sizeof(char) * _error);
+      sprintf(numerr,"%d",_error);
+      stampaMsg(numerr, "red");
+      stampaMsg("\n", "red");
+
+     //eliminaFile();
+
+    }
+    // inizializzazione strutture interne ed eliminazione della Symbol Table
+    liberaStrutture();
+    HASH_CLEAR(hh,table);
+
+  }
+  else { // in caso non sia stato possibile leggere il file di input stampa un errore
+    stampaMsg("\nERRORE, file ","red"); 
+    stampaMsg(nomeFile,"yellow");
+    stampaMsg(" non trovato.\n", "red");
+  }
+
+ 
+
+}
+
  /* La funzione main avvia il processo di compilazione e traduzione mediante la funzione interna
 yyparse.
  Gli argomenti sono:
@@ -595,38 +731,73 @@ yyparse.
  - argv, i nomi dei file passati da riga di comando, contenenti il codice sorgente in PHP
 da compilare e tradurre in C. */
 
- main( int argc, char *argv[] )
- {
- extern FILE *yyin;
- ++argv; --argc;
+int main( int argc, char *argv[] ){ 
+ ++argv; --argc; 	// esclusione nome eseguibile dai parametri
  int i;
-
- for( i = 0; i < argc; i++ ) {
- printf( "Analisi del file %d: %s\n\n", i + 1, argv[ i ] );
- if( fopen( argv[ i ], "r" ) != NULL )
- yyin = fopen( argv[ i ], "r" );
- else {
- printf( "\033[01;31mERRORE: file %s non trovato.\033[00m\n", argv[ i ] );
- exit( 0 );
- }
- //yydebug = 1;
- yyparse( );
- printf( "\n" );
- }
-
- if( _error == 0 && _warning == 0 ) {
- print_elements();
- printf( "\n\n\033[01;32mParsing riuscito.\033[00m\n" );
- } else if ( _error == 0 && _warning != 0 ) {
- print_elements();
- printf( "\n\n\033[01;33mParsing riuscito, ma sono presenti %i warnings.\033[00m\n", _warning );
- } else {
- printf( "\n\n\033[01;31mParsing fallito:\033[00m" );
- if( _error > 1 )
- printf( "\033[01;31m sono stati rilevati %i errori. \033[00m\n", _error );
- else
- printf( "\033[01;31m è stato rilevato %i errore. \033[00m\n", _error );
-
- cancella_file( );
- }
- }
+ logging = false;
+ if(argc > 0)
+ {
+    // forza ad off il debug di flex, per default abilitato
+    yy_flex_debug = 0;
+    // ciclo per controllare che vi sia almeno un file con ext PHP in input e per impostare le opzioni
+    bool inputPHP = false;
+    for( i = 0; i < argc; i++ ) 
+    {
+      if(strstr(argv[i],"php") != NULL)
+      {
+	  inputPHP = true;
+	  continue;
+      }
+      if(strcmp(argv[i],"-dl") == 0)
+      { //imposta il debug per flex se passato il parametro -dl
+	yy_flex_debug = 1;
+	continue;  
+      }
+      if(strcmp(argv[i],"-dp") == 0)
+      { //imposta il debug per bison se passato il parametro -dp
+	yydebug = 1;
+	continue;	  
+      }
+      if(strcmp(argv[i],"-log") == 0)
+      { //imposta il debug per bison se passato il parametro -log
+	logging = true;
+	continue;	  
+      }
+    }
+    startLog();
+    if(inputPHP == true)
+    {
+      for( i = 0; i < argc; i++ ) 
+      {
+	if(strstr(argv[i],"php") != NULL)
+	{	  
+	  startParsing(argv[i]); 
+	  if( _error > 0 || _warning > 0 )
+	  {
+	      stopLog();
+	      logging = false;
+	      stampaMsg("\n\nParsing fallito per uno o più file in input.\n", "yellow");   
+	  }
+	}
+       }
+    }
+    else
+    {
+      stopLog();
+      logging = false;
+      stampaMsg("\nAttenzione è necessario passare come parametro un file con estensione php.\n\n", "red");
+      exit(1);
+    }
+  stopLog();
+  }
+  else
+  {
+      stampaMsg("\nE' necessario passare come parametro almeno un file con estensione php", "red");
+      stampaMsg("\nFomato parametri:\n\t\t p2c [-dl|-dp|-log] nomefile.php [secondofile.php...]", "yellow" );
+      stampaMsg("\n\t\t\t -dl = abilita il debug dello scanner", "yellow" );
+      stampaMsg("\n\t\t\t -dp = abilita il debug del parser", "yellow" );
+      stampaMsg("\n\t\t\t -log = abilita il logging nel file parserlog.log\n\n", "yellow" );
+      exit(1);
+  }
+ return 0;
+}
