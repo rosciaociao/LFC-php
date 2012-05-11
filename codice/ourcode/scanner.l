@@ -87,7 +87,7 @@ TOKENS [;:,.\[\]()|^&+-/*=%!~$<>?@]
 /** Definizione regex per token quali [,],{,},$ che possono comparire in una stringa */
 ENCAPSED_TOKENS [\[\]{}$]
 /** Definizione per letterali validi all'interno di una stringa */
-ESCAPED_AND_WHITESPACE [\n\t\r #'.:;,()|^&+-/*=%!~<>?@]+
+ESCAPED_AND_WHITESPACE [\\\n\t\r #'.:;,()|^&+-/*=%!~<>?@]+
 /** Definizione per letterali costituiti da qualsiasi carattere alfanumerico o newline */
 ANY_CHAR (.|[\n])
 /** Definizione per terminatori di linea Unix o Windows */
@@ -492,7 +492,11 @@ lineno++;
 
  /** Regola identificare una stringa di letterali tra virgolette */
 <ST_IN_SCRIPTING>(["]([^$_"\\]|("\\".))*["]) {
-  yylval.id = ( char * )strdup( yytext );
+ char *s = ( char * )strdup( yytext );
+ char *pnt;
+ if( (pnt=strstr( s, "\n" )) != NULL )
+    *pnt = 'N';
+  yylval.id = ( char * )strdup( s );
   return T_CONSTANT_ENCAPSED_STRING;
 }
 

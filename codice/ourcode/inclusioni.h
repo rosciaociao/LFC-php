@@ -86,7 +86,7 @@ void stampaMsg(const char * str, const char * col){
   }
   printf("%s",str);
   if(logging == false)
-    printf("\033[01;00m"); 
+    printf("\033[00m"); 
 }
 
 
@@ -279,7 +279,7 @@ char *gen_expression( listaStringhe *Exp ) {
         strcat( expression, Exp->stringa );
         Exp = Exp->next;
     }
-    if ( Exp != NULL ) {
+    if ( Exp == NULL ) {
         strcat( expression, "\0" );
     }
 
@@ -312,7 +312,7 @@ char *gen_echo_expression( FILE* f_ptr, listaStringhe *Exp ) {
         strcat( expression, Exp->stringa );
         Exp = Exp->next;
     }
-    if ( Exp != NULL ) {
+    if ( Exp == NULL ) {
         strcat( expression, "\0" );
     }
 

@@ -75,7 +75,7 @@
 
 %}
 
- %expect 52
+ %expect 53
 
 //Associatività degli operatori e dei Token
  %left ','
@@ -309,6 +309,18 @@ variabile associata si assume come in sola lettura ( read = true ). */
  T_CONSTANT '=' expr { isconstant( $1, yylineno ); yyerror( "ERRORE SEMANTICO: non è consentito assegnare un valore a una costante" ); }
 //inserito da me
 | scalar scalar
+| w_variable '=' T_INC variable { 
+      ins_in_lista( &espressioni, "++" );
+      check($4, index_element, yylineno, true );
+     
+//stampa_lista(listaTipi,"tipi");
+//printf("%s",element->type); exit(1);
+      countelements( espressioni ) > 1 ? current_value = espressioni->stringa : current_value;
+      gen_assignment( f_ptr, 0, $1, current_type, index_element, espressioni, false ); 
+      add_element( $1, "variable", current_type, current_value, 0, yylineno );
+      ins_in_lista(&listaTipi,current_type);
+      current_type = type_checking( listaTipi, yylineno );
+  }
 | w_variable '=' '+' expr {
  if( array ) {
  /*nel caso si stia definendo un array ( un
@@ -691,7 +703,7 @@ void startParsing(char * nomeFile){
       stampaSymbolTable();
       stampaMsg("\nParsing del file ","yellow"); 
       stampaMsg(nomeFile,"yellow");
-      stampaMsg(" riuscito con errori n^","yellow");
+      stampaMsg(" riuscito con Warning n^ ","yellow");
       char * numwarn = (char *) malloc(sizeof(char) * _warning);
       sprintf(numwarn,"%d",_warning);
       stampaMsg(numwarn, "red");
@@ -772,7 +784,7 @@ int main( int argc, char *argv[] ){
 	if(strstr(argv[i],"php") != NULL)
 	{	  
 	  startParsing(argv[i]); 
-	  if( _error > 0 || _warning > 0 )
+	  if( _error > 0)
 	  {
 	      stopLog();
 	      logging = false;
