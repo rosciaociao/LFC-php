@@ -493,10 +493,33 @@ lineno++;
  /** Regola identificare una stringa di letterali tra virgolette */
 <ST_IN_SCRIPTING>(["]([^$_"\\]|("\\".))*["]) {
  char *s = ( char * )strdup( yytext );
- char *pnt;
- if( (pnt=strstr( s, "\n" )) != NULL )
-    *pnt = 'N';
-  yylval.id = ( char * )strdup( s );
+ char *sx = ( char * )strdup( yytext );
+ int i = 0 , j = 0, count = 0;
+ char s2[] = "\\n";
+ int lung = strlen(s);
+ while( lung-- > 0 ){
+ if (s[i]=='\n')
+    count++;    
+ i++;
+ }
+ char * s1 = (char *) malloc(sizeof(char)*(count + lung + 2));
+ lung = strlen(sx);
+ i = 0;
+ while( lung-- > 0 ){
+  if (sx[i]=='\n'){
+    strcat(s1,s2);
+    j+=2;
+    i++;
+  }
+  else if ( sx[i]=='\r' && sx[i+1] == '\n'){
+    strcat(s1,s2);
+    j+=2;
+    i+=2;
+  }  
+  else
+    s1[j++]=sx[i++];
+ }
+  yylval.id = ( char * )strdup( s1 );
   return T_CONSTANT_ENCAPSED_STRING;
 }
 
