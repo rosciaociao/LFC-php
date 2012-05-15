@@ -121,6 +121,8 @@
  %token T_WHITESPACE
  %token T_INIT
  %token T_FINAL
+ %token T_FUNCTION
+ %token T_RETURN
 
  /* L’opzione %union consente di specificare una varietà di tipi di dato che sono usati dalla
 variabile yylval in Flex. L'unico tipo specificato è la stringa di caratteri. */
@@ -168,6 +170,7 @@ ntab servono per stampare nel file i simboli tab "\t" */
 
  top_statement:
  { fprintf( f_ptr, "\t" ); } statement
+ | function_declaration_statement
  ;
 
  inner_statement_list:
@@ -177,6 +180,7 @@ ntab servono per stampare nel file i simboli tab "\t" */
 
  inner_statement:
  { gen_tab( f_ptr, ntab ); } statement
+ | function_declaration_statement
  ;
 
  statement:
@@ -298,6 +302,16 @@ delle stesse nella symbol table.
  | expr
  ;
 
+ function_declaration_statement:
+		T_FUNCTION T_STRING '(' parameter_list ')' '{' inner_statement_list '}'
+ ;
+
+ parameter_list:
+  /* empty */
+  | T_VARIABLE 
+  | parameter_list ',' T_VARIABLE
+ ;
+
  /* Tale regola definisce la creazione delle espressioni associate ai vari costrutti del PHP.
  La prima parte definisce le regola di assegnazione a una variabile o ad un elemento di un array,
 mentre la seconda parte definisce le varie operazioni matematiche o logiche. L'ultima parte
@@ -309,6 +323,7 @@ variabile associata si assume come in sola lettura ( read = true ). */
  T_CONSTANT '=' expr { isconstant( $1, yylineno ); yyerror( "ERRORE SEMANTICO: non è consentito assegnare un valore a una costante" ); }
 //inserito da me
 | scalar scalar
+| w_variable '=' T_STRING '(' expr ')'
 | w_variable '=' T_INC variable { 
       ins_in_lista( &espressioni, "++" );
       check($4, index_element, yylineno, true );

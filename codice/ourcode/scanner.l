@@ -95,6 +95,10 @@ NEWLINE ("\r"|"\n"|"\r\n")
 
 %%
 
+<ST_IN_SCRIPTING>"function" {
+	return T_FUNCTION;
+}
+
  /** Regola per il terminale if */  
 <ST_IN_SCRIPTING>"if" {
   return T_IF;
@@ -152,6 +156,10 @@ NEWLINE ("\r"|"\n"|"\r\n")
  /** Regola per il terminale echo (per la stampa di una variabile o costante) */
 <ST_IN_SCRIPTING>"echo" {
   return T_ECHO;
+}
+
+<ST_IN_SCRIPTING>"return" {
+	return T_RETURN;
 }
 
  /** Regola per il terminale define (per la definizione di una costante) */
@@ -498,8 +506,8 @@ lineno++;
  char s2[] = "\\n";
  int lung = strlen(s);
  while( lung-- > 0 ){
- if (s[i]=='\n')
-    count++;    
+  if (s[i]=='\n')
+    count++;
  i++;
  }
  char * s1 = (char *) malloc(sizeof(char)*(count + lung + 2));
@@ -515,7 +523,7 @@ lineno++;
     strcat(s1,s2);
     j+=2;
     i+=2;
-  }  
+  }
   else
     s1[j++]=sx[i++];
  }
@@ -630,5 +638,6 @@ return '\'';
 <ST_IN_SCRIPTING,INITIAL,ST_DOUBLE_QUOTES,ST_SINGLE_QUOTE>{ANY_CHAR} {
   printf( "\033[01;33mATTENZIONE: carattere inatteso in input '%c' (ASCII=%d) state=%d",yytext[0], yytext[0], YYSTATE );
 }
+
 
 %%
