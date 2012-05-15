@@ -1,6 +1,6 @@
 /**
 +-----------------------------------------------------------------------+
-| PHP2C -- inclusioni.h 						|
+| P2C -- inclusioni.h 							|
 +-----------------------------------------------------------------------+
 |									|
 |  Autori: 	Vito Manghisi 						|
@@ -12,91 +12,124 @@
 */
 
 #include <stdio.h> 	/** Per la gestione dei messaggi di errore semantico */
-#include <string.h> 	/** Serve per la manipolazione delle stringhe */
+#include <string.h> 	/** Per la manipolazione delle stringhe */
+#include <ctype.h>	/** Per la funzione isdigit */
 
-/** Rappresenta il percorso dove verrà salvato il file "traduzione.c" contenente la traduzione in C.
-    TODO: RIMOZIONE PER PORTABILITA' MEGLIO PRENDERE LA CARTELLA DI LANCIO DEL TRADUTTORE
- */
-#define PATH "./traduzione.c" 
+/** Nome del file in uscita */
+char * fout;
 
+/** Puntatore al file che conterrà la traduzione in linguaggio C. */ 
+ FILE *f_ptr;
 
+/** Puntatore al file di log */
+ FILE *log_file;
 
-/* utility.h Questo file contiene un insieme di strutture dati e funzioni di utilità e supporto per il
-processo di compilazione e traduzione. */
+/** Struttura per il tipo di dato booleano  */
+typedef enum { false, true } bool; 
 
-typedef enum { false, true } bool; /* Struttura per il tipo di dato booleano  */
+/** Flag per abilitare il logging su file */
+bool logging;
 
-/** Nuovo tipo di dato "testo" come lista concatenata di stringhe. */
-typedef struct testo 
+FILE *tmpStderr, *tmpStdout;
+
+/** Nuovo tipo di dato "listaStringhe" come lista concatenata di stringhe. */
+typedef struct listaStringhe 
 {
-    char * tes;
-    struct testo * next;
-} testo;
+    char * stringa;
+    struct listaStringhe * next;
+} listaStringhe;
 
 /** 	Lista concatenata contenente i tipi delle variabili, elementi di array o costanti. 
  * 	Utile per il type_checking.
  */
-testo *T;
+listaStringhe *listaTipi;
 
 /** 	Lista concatenata contenente gli elementi di una espressione 
  * 	(variabili, elementi di array, costanti, operatori).
  * 	Utile per  stampare intere espressioni nel file traduzione.c 
  */
-testo *Exp;
+listaStringhe *espressioni;
 
 /**	Lista concatenata contenente frasi o parole ( non keywords ). 
- * 	Utile per stampare intere frasi, anche associate a espressioni, nel file traduzione.c . 
+ * 	Utile per stampare intere frasi, anche associate a espressioni, nel file tradotto in C . 
  */
-testo *Phrase;
+listaStringhe *frasi;
 
 /** Funzione che cancella il contenuto delle tre liste di supporto. Utile quando è
  *  necessario resettare le liste ogni volta che il parser valida una frase. 
  */
-void clear( ) {
-    T = NULL;
-    Exp = NULL;
-    Phrase = NULL;
+void liberaStrutture( ) {
+    listaTipi = NULL;
+    espressioni = NULL;
+    frasi = NULL;
 }
 
-/** 	La funzione put_testo inserisce una stringa in una lista.
- *  	Gli argomenti sono:
- * 	- TT, un doppio puntatore alla lista per consentire l'aggiunta di nuovi elementi;
- * 	- str, la stringa da inserire nel campo tes del nuovo elemento che viene inserito
- * 	  nella lista. 
+/** Dichiarazione della funzione che inserisce una stringa nel file di log del parser */
+void logThis(const char *);
+
+/** Funzione che stampa a console una stringa passata come parametro in rosso 
+ *	Parametri: 	str = stringa da stampare
+ * 			col = colore per stampa a console, tra red, green, blue, purple, yellow
  */
-void put_testo( testo **TT,char *str )
-{
-    testo *punt,*t_el;
-    t_el = ( testo * )malloc( sizeof( testo ) );
-    t_el->tes = ( char * )strdup( str );
-    t_el->next = NULL;
-    if ( *TT == NULL )
-        *TT = t_el;
+void stampaMsg(const char * str, const char * col){
+  if(logging == false){
+    if(strcmp(col,"blue") == 0)
+      printf("\033[01;34m");
+    else if(strcmp(col,"yellow") == 0)
+      printf("\033[01;33m");
+    else if(strcmp(col,"green") == 0)
+      printf("\033[01;32m");
+    else if(strcmp(col,"purple") == 0)
+      printf("\033[01;35m");
     else
+      printf("\033[01;31m");  
+  }
+  printf("%s",str);
+  if(logging == false)
+    printf("\033[00m"); 
+}
+
+
+/** 	ins_in_lista inserisce una stringa in una lista concatenata
+ *  	Argomenti
+ * 	- pointer, doppio puntatore alla lista;
+ * 	- str, nuova stringa da inserire.
+ */
+
+void ins_in_lista( listaStringhe **pointer ,char *stringa )
+{
+    listaStringhe *punt, *copia;
+    // allocazione memoria per il nuovo elemento
+    copia = ( listaStringhe * )malloc( sizeof( listaStringhe ) );
+    copia->stringa = ( char * )strdup( stringa );
+    copia->next = NULL;
+    
+    if ( *pointer == NULL )
+        *pointer = copia; 	// lista vuota, inserimento in testa
+    else			// lista non vuota, inserimento in coda
     {
-        punt = *TT;
-        while ( punt->next!=NULL )
+        punt = *pointer;
+        while ( punt->next != NULL )
             punt = punt->next;
-        punt->next = t_el;
+        punt->next = copia;
     }
 }
 
-/** 	La funzione get_testo stampa a video tutti i valori di una lista.
+/** 	stampa_lista stampa a video tutti i valori di una lista.
  * 	Gli argomenti sono:
- * 	- TT, un puntatore alla lista;
- * 	- nome, una stringa d'utilità per etichettare la stampa, in modo tale da indentificare
- * 	la lista. 
+ * 	- un puntatore lista;
+ * 	- label, una stringa d'utilità per etichettare la stampa
  */
-void get_testo( testo *TT, char *nome )
+void stampa_lista( listaStringhe *pointer, char *label )
 {
-    testo *punt = TT;
+    listaStringhe *punt = pointer;
 
-    printf( "/* * * * * * * * * * * %s * * * * * * * * * * */\n\n", nome );
+    printf( "#################### Start %s ####################\n\n", label );
     while ( punt != NULL ) {
-        printf( "Elemento: %s\n", punt->tes );
+        printf( "Elemento: %s\n", punt->stringa );
         punt = punt->next;
     }
-    printf( "\n/* * * * * * * * * * * * * * * * * * * * * * * * */\n\n" );
+    printf( "\n################ End %s #################\n\n", label );
 }
 
 /**	La funzione countelements conta il numero di elementi presenti in una lista.
@@ -105,8 +138,8 @@ void get_testo( testo *TT, char *nome )
  * 
  * 	Restituisce il numero degli elementi. 
  */
-int countelements( testo *T ) {
-    testo *punt = T;
+int countelements( listaStringhe *T ) {
+    listaStringhe *punt = T;
     int value = 0;
 
     while ( punt != NULL ) {
@@ -125,26 +158,20 @@ int countelements( testo *T ) {
  */
 int isnumeric( char *str )
 {
-//prelevo il primo carattere.
-    char *c = (char *)strndup(str, 1);
-//se è uguale a "-", è in analisi un numero negativo.
-    if ( strcmp( c, "-" ) == 0) {
-//scarta il segno "-".
+    char *c = (char *)strndup(str, 1);  //copia del primo carattere
+    if ( strcmp( c, "-" ) == 0) {  //se è un "-" si scarta il segno
         c = ( char * )strdup( str + 1 );
-//per ogni carattere verifica che sia un numero.
         while ( *c )
         {
-//se anche un solo carattere non è un numero, restituisce zero e interrompe il ciclo.
-            if ( !isdigit( *c ) )
+           if ( !isdigit( *c ) )
                 return 0;
             c++;
         }
-//se il primo carattere non è "-", è in analisi un numero maggiore o uguale a zero.
-    } else {
-//per ogni carattere verifica che sia un numero.
+    } 
+    else 
+    {
         while ( *str )
         {
-//se anche un solo carattere non è un numero, restituisce zero e interrompe il ciclo.
             if ( !isdigit( *str ) )
                 return 0;
             str++;
@@ -156,53 +183,50 @@ int isnumeric( char *str )
 /** Un array contenente tutti i possibili operatori di assegnazione. */
 char *op_name[] = { "=", "+=", "-=", "*=", "/=", "%=" };
 
-/** 	La funzione apri_file apre il file traduzione.c che conterrà il 
- * 	codice intermedio C, frutto della compilazione e traduzione.
+/** 	La funzione apri_file apre il file tradotto in C che conterrà il 
+ * 	codice intermedio C tradotto.
  * 	
  * 	Restituisce il puntatore al file. 
  */
-FILE *apri_file( ) {
+FILE *apri_file() {
     FILE *f_ptr;
-
-    if ( ( f_ptr = fopen( PATH, "w" ) ) == NULL ) {
-        printf( "\033[01;31mERRORE: apertura del file traduzione.c fallita. Directory %s non esistente.\033[00m\n", PATH );
+    if ( ( f_ptr = fopen( fout, "w" ) ) == NULL ) {
+	stampaMsg("ERRORE: apertura del file tradotto in C fallita.", "red");
         exit( 0 );
     }
-
     return f_ptr;
 }
 
-/** La funzione chiudi_file chiude il file traduzione.c precedentemente aperto. */
-void chiudi_file( FILE *f_ptr ) {
+/** La funzione chiudiOutputFile chiude il file traduzione.c precedentemente aperto. */
+void chiudiOutputFile( FILE *f_ptr ) {
 //forza l'effettiva scrittura di eventuali dati presenti nel buffer, prima della chiusura.
     fflush( f_ptr );
 //chiude il file.
     fclose( f_ptr );
 }
 
-/** 	La funzione chiudi_cancella_file, in caso di errore semantico o grave,
- *	chiude ed elimina ilfile traduzione.c
+/** 	La funzione eliminaOutputFile, in caso di errore semantico o grave,
+ *	chiude ed elimina il file di traduzione
  * 	L'argomento è:
  * 	- f_ptr, il puntatore al file da chiudere. 
  */
-void chiudi_cancella_file( FILE *f_ptr ) {
+void eliminaOutputFile( FILE *f_ptr ) {
     if ( f_ptr != NULL )
-        chiudi_file( f_ptr );
-
-    if ( remove( PATH ) == -1 )
-        printf( "\033[01;31mERRORE: impossibile cancellare il file.\033[00m\n" );
+        chiudiOutputFile( f_ptr );
+    if ( remove( fout ) == -1 )
+        stampaMsg("[ERRORE]: impossibile eliminare il file traduzione.c", "red");
 }
 
-/** 	La funzione cancella_file elimina il file traduzione.c . Essa è richiamata 
+/** 	La funzione eliminaFile elimina il file di traduzione. Essa è richiamata 
  * 	ad ogni inizio compilazione, in modo tale da poter ricreare un nuovo file. 
  */
-void cancella_file( ) {
+void eliminaFile( ) {
     FILE *f_ptr;
 //solo se il file esiste sarà cancellato.
-    if ( ( f_ptr = fopen( PATH, "r" ) ) ) {
+    if ( ( f_ptr = fopen( fout, "r" ) ) ) {
         fclose( f_ptr );
-        if ( remove( PATH ) == -1 )
-            printf( "\033[01;31mERRORE: impossibile cancellare il file.\033[00m\n" );
+        if ( remove( fout ) == -1 )
+            stampaMsg("[ERRORE]: impossibile eliminare il file di traduzione", "red");
     }
 }
 
@@ -235,27 +259,27 @@ void gen_constant( FILE* f_ptr, char *nameConstant, char *type, char *value ) {
 
 /** 	La funzione gen_expression genera le espressioni, create da composizioni di variabili,
  * 	elementi di array e costanti legate fra loro dagli operatori previsti dalla grammatica. Tutti
- * 	questi elementi sono stati precedentemente inseriti nella lista Exp.
+ * 	questi elementi sono stati precedentemente inseriti nella lista espressioni.
  * 	L'argomento è:
  * 	- Exp, la lista contenenti gli elementi delle espressioni.
  * 	
  * 	Restituisce l'espressione. 
  */
-char *gen_expression( testo *Exp ) {
+char *gen_expression( listaStringhe *Exp ) {
     char *expression = NULL;
 
-//get_testo( Exp, "ESPR" );
+//get_listaStringhe( Exp, "ESPR" );
 //assegna a expression il primo valore della lista Exp.
     if ( Exp != NULL ) {
-        expression = Exp->tes;
+        expression = Exp->stringa;
         Exp = Exp->next;
     }
 //concatena tutti i successivi elementi della lista.
     while ( Exp != NULL ) {
-        strcat( expression, Exp->tes );
+        strcat( expression, Exp->stringa );
         Exp = Exp->next;
     }
-    if ( Exp != NULL ) {
+    if ( Exp == NULL ) {
         strcat( expression, "\0" );
     }
 
@@ -269,26 +293,26 @@ char *gen_expression( testo *Exp ) {
  * 	- Exp, la lista contenenti gli elementi delle espressioni.
  * 	Restituisce l'espressione. 
  */
-char *gen_echo_expression( FILE* f_ptr, testo *Exp ) {
+char *gen_echo_expression( FILE* f_ptr, listaStringhe *Exp ) {
     char *expression = NULL;
 //se gli elementi sono in numero maggioe di uno è prevista la stampa della ",".
     int elements = countelements( Exp );
 
-//get_testo( Exp, "GEN ECHO ESPR" );
+//get_listaStringhe( Exp, "GEN ECHO ESPR" );
 
 //assegna a expression il primo valore della lista Exp.
     if ( Exp != NULL ) {
-        expression = Exp->tes;
+        expression = Exp->stringa;
         Exp = Exp->next;
     }
 //concatena tutti i successivi elementi della lista.
     while ( Exp != NULL ) {
         if ( elements > 1 )
             strcat( expression, ", " );
-        strcat( expression, Exp->tes );
+        strcat( expression, Exp->stringa );
         Exp = Exp->next;
     }
-    if ( Exp != NULL ) {
+    if ( Exp == NULL ) {
         strcat( expression, "\0" );
     }
 
@@ -302,16 +326,16 @@ char *gen_echo_expression( FILE* f_ptr, testo *Exp ) {
  * 	- f_ptr, il puntatore al file nel quale stampare la traduzione;
  * 	- Exp, la lista contenenti gli elementi delle espressioni. 
  */
-void print_expression( FILE* f_ptr, testo *Exp ) {
+void print_expression( FILE* f_ptr, listaStringhe *Exp ) {
     char *expression;
 
-//get_testo( Exp, "ESPR" );
+//get_listaStringhe( Exp, "ESPR" );
 
-    expression = Exp->tes;
+    expression = Exp->stringa;
     Exp = Exp->next;
 
     while ( Exp != NULL ) {
-        strcat( expression, Exp->tes );
+        strcat( expression, Exp->stringa );
         Exp = Exp->next;
     }
     strcat(expression, "\0");
@@ -325,7 +349,7 @@ void print_expression( FILE* f_ptr, testo *Exp ) {
  * 	- type, il tipo dell'array;
  * 	- Exp, la lista contenenti gli elementi delle espressioni. 
  */
-void gen_create_array( FILE* f_ptr, char *name_array, char *type, testo *Exp ) {
+void gen_create_array( FILE* f_ptr, char *name_array, char *type, listaStringhe *Exp ) {
     char *expression = gen_expression( Exp );
 //Se l'array non è stato definito viene stampato anche il tipo, altrimenti no.
     if ( check_element_gen_code( name_array ) )
@@ -346,7 +370,7 @@ void gen_create_array( FILE* f_ptr, char *name_array, char *type, testo *Exp ) {
  * 	- index_element, l'offset dell'elemento di un array;
  * 	- Exp, la lista contenenti gli elementi delle espressioni. 
  */
-void gen_assignment( FILE* f_ptr, int index, char *left_var, char *type, char *index_element, testo *Exp, bool array ) {
+void gen_assignment( FILE* f_ptr, int index, char *left_var, char *type, char *index_element, listaStringhe *Exp, bool array ) {
     char *expression = gen_expression( Exp );
 //Se è una variabile
     if ( !array ) {
@@ -365,7 +389,7 @@ void gen_assignment( FILE* f_ptr, int index, char *left_var, char *type, char *i
  * 	- f_ptr, il puntatore al file nel quale stampare la traduzione;
  * 	- Exp, la lista contenenti gli elementi delle espressioni. 
  */
-void gen_if( FILE* f_ptr, testo *Exp ) {
+void gen_if( FILE* f_ptr, listaStringhe *Exp ) {
     char *expression = gen_expression( Exp );
     fprintf( f_ptr, "if( %s ) {\n", expression );
 }
@@ -375,7 +399,7 @@ void gen_if( FILE* f_ptr, testo *Exp ) {
  * 	- f_ptr, il puntatore al file nel quale stampare la traduzione;
  * 	- Exp, la lista contenenti gli elementi delle espressioni. 
  */
-void gen_elseif( FILE* f_ptr, testo *Exp ) {
+void gen_elseif( FILE* f_ptr, listaStringhe *Exp ) {
     char *expression = gen_expression( Exp );
     fprintf( f_ptr, " else if( %s ) {\n", expression );
 }
@@ -385,7 +409,7 @@ void gen_elseif( FILE* f_ptr, testo *Exp ) {
  * 	- f_ptr, il puntatore al file nel quale stampare la traduzione;
  * 	- Exp, la lista contenenti gli elementi delle espressioni. 
  */
-void gen_while( FILE* f_ptr, testo *Exp ) {
+void gen_while( FILE* f_ptr, listaStringhe *Exp ) {
     char *expression = gen_expression( Exp );
     fprintf( f_ptr, "while( %s ) {\n", expression );
 }
@@ -395,7 +419,7 @@ void gen_while( FILE* f_ptr, testo *Exp ) {
  * 	- f_ptr, il puntatore al file nel quale stampare la traduzione;
  * 	- Exp, la lista contenenti gli elementi delle espressioni. 
  */
-void gen_switch( FILE* f_ptr, testo *Exp ) {
+void gen_switch( FILE* f_ptr, listaStringhe *Exp ) {
     char *expression = gen_expression( Exp );
     fprintf( f_ptr, "switch( %s ) {\n", expression );
 }
@@ -404,10 +428,10 @@ void gen_switch( FILE* f_ptr, testo *Exp ) {
  * 	Gli argomenti sono:
  * 	- f_ptr, il puntatore al file nel quale stampare la traduzione;
  * 	- Exp, la lista contenenti gli elementi delle espressioni;
- * 	- Phrase, la lista contenenti gli elementi della frase da associare all'espressione. 
+ * 	- frasi, la lista contenenti gli elementi della frase da associare all'espressione. 
  */
-void gen_echo( FILE* f_ptr, testo *Exp, testo *Phrase ) {
-    char *phrase = gen_expression( Phrase );
+void gen_echo( FILE* f_ptr, listaStringhe *Exp, listaStringhe *frasi ) {
+    char *phrase = gen_expression( frasi );
     char *expression = gen_echo_expression( f_ptr, Exp );
 
     if ( phrase != NULL && expression != NULL )
@@ -427,4 +451,36 @@ void gen_tab( FILE *f_ptr, int ntab ) {
     int i;
     for (i = 0; i < ntab; i++)
         fprintf( f_ptr, "\t" );
+}
+
+void startLog(){
+  if( logging == true){
+    if ( ( log_file = fopen( "parselog.log", "w" ) ) == NULL )
+      stampaMsg("\nINFO_ERR: Fallito avvio scrittura del file di log\n", "red");    
+    const char * timestamp = "Log ultima esecuzione di p2c";
+    fprintf( log_file, "\n****************** %s *****************\n", timestamp );
+    stampaMsg("\nINFO: log abilitato in scrittura nel file parselog.log\n", "green");    
+    tmpStdout = stdout; //salvataggio riferimento allo stdout
+    stdout = log_file;  //redirect dello standard output al file di log
+    tmpStderr = stderr; //salvataggio riferimento allo stderr
+    stderr = log_file;  //redirect dello standard errore al file di log    
+  }
+}
+
+void stopLog(){
+  if(logging == true){
+    const char * timestamp = "Termine log di p2c";
+    fprintf( log_file, "\n****************** %s *****************\n", timestamp );
+    fflush( log_file );
+    fclose( log_file );
+    stderr = tmpStderr; //ripristino riferimento allo stderr
+    stdout = tmpStdout; //ripristino riferimento allo stdout
+  }
+}
+
+void logThis(const char * s){
+  if(logging == true){    
+     fprintf(log_file, "%s", s );
+    //fprintf(log_file, "%s", "\n" );
+  }
 }

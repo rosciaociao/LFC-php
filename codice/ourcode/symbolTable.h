@@ -1,6 +1,6 @@
 /**
 +-----------------------------------------------------------------------+
-| PHP2C -- symbolTable.h 						|
+| P2C -- symbolTable.h 							|
 +-----------------------------------------------------------------------+
 |									|
 |  Autori: 	Vito Manghisi 						|
@@ -39,11 +39,11 @@ char* warn[ NUM_WARNINGS ] = { "ATTENZIONE: l'uso di un operando di tipo stringa
                                "ATTENZIONE: l'uso di un operando di tipo boolean non è corretto nel linguaggio target C.\n",
                                "ATTENZIONE: l'uso di un operando di tipo intero non è corretto nel linguaggio target C.\n",
                                "ATTENZIONE: l'uso di un operando di tipo float non è corretto nel linguaggio target C.\n",
-                               "ATTENZIONE: l'uso di un elemento con offset negativo o superiore alla dimensione dell'array potrebbe causare problemi nel linguaggio target C.\n",  "ATTENZIONE: la stampa di un elemento con offset negativo o superiore alla dimensione dell'array potrebbe causare problemi nel linguaggio target C.\n"
+                               "ATTENZIONE: l'uso di un elemento con offset negativo o superiore alla dimensione dell'array potrebbe causare problemi nel linguaggio target C.\n",  
+			       "ATTENZIONE: la stampa di un elemento con offset negativo o superiore alla dimensione dell'array potrebbe causare problemi nel linguaggio target C.\n"
                              };
 
-/** Definizione della struttura della tabella delle costanti
-predefinite del linguaggio PHP. */
+/** Definizione della struttura della tabella delle costanti predefinite del linguaggio PHP. */
 typedef struct CONSTANTS_TABLE
 {
     char *ctM; //parola maiuscola.
@@ -71,15 +71,21 @@ typedef struct {
 typedef el_ST *element_ptr; // Puntatore all'elemento.
 element_ptr table = NULL; // Puntatore alla tabella.
 
-/* La funzione print_elements stampa tutti gli elementi contenuti nella Symbol table. */
-void print_elements( ) {
+/* Stampa a video gli elementi contenuti nella Symbol table. */
+void stampaSymbolTable( ) {
     element_ptr s;
-
-    printf("\n/* * * * * * * * SYMBOL TABLE * * * * * * * */\n\n");
+    printf("\n\033[01;35m#################### Start of the SYMBOL TABLE ####################\033[00m\n\n");
     for ( s = table; s != NULL; s = s->hh.next ) {
-        printf( "element name %s element %s type %s value %s dim %i\n", s->nameToken, s->element, s->type, s->value, s->dim );
+        printf( "%s element name %s type %s",  s->element, s->nameToken, s->type);
+	if(strcmp(s->element,"array")==0){
+	   printf( " dim %i\n", s->dim );
+	}
+	else if(strcmp(s->element,"variable")==0)
+	{
+	  printf(" value %s\n", s->value);
+	}
     }
-    printf("\n/* * * * * * * * * * * * * * * * * * * * * * */\n\n");
+    printf("\n\033[01;35m####################  End of the Symbol Table  ####################\033[00m\n\n");
 }
 
 /** La funzione find_element trova e restituisce un elemento della Symbol table. L'argomento è:
@@ -126,20 +132,21 @@ void add_element( char *nameToken, char *element, char *current_type, char *curr
         printf( "\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: ridefinizione di una costante.\033[00m\n", nr);
         printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
         pulizia( );
-        exit( 0 );
+        //exit( 0 );
 //altrimenti è una riassegnazione di valori a una variabile: occorre verificare che la riassegnazione non violi il tipo precedentemente definito.
     } else {
 //in caso di non violazione verrà aggiornato il valore della variabile.
         if ( strcmp( exist->type, current_type ) == 0 ) {
             delete_element( exist );
             exist->value = current_value;
+	    // manca HASH_DEL
             HASH_ADD_KEYPTR( hh, table, exist->nameToken, strlen( exist->nameToken ), exist );
 //altrimenti sarà lanciato un errore semantico fatale.
         } else {
             printf( "\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: l'assegnazione viola il tipo primitivo della variabile.\033[00m\n", nr);
             printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
             pulizia( );
-            exit( 0 );
+            //exit( 0 );
         }
     }
 }
@@ -153,25 +160,25 @@ Gli argomento sono:
 - nr, il numero riga segnalato dalla variabile yylineno di Flex.
 Restituisce il tipo da assegnare alla variabile da aggiungere o aggiornare ( solo il valore )
 nella Symbol table. */
-char *type_checking( testo *TT, int nr )
+char *type_checking( listaStringhe *TT, int nr )
 {
-    testo *punt = TT;
+    listaStringhe *punt = TT;
     char *tipo;
     char *current_type = "int";
 
-//get_testo( TT, "TIPE" );
+//stampa_lista( TT, "TIPE" );
 
     while ( punt != NULL ) {
 
-        if ( strcmp( punt->tes, "float" ) == 0 ) {
+        if ( strcmp( punt->stringa, "float" ) == 0 ) {
             current_type = "float";
         }
 
-        if ( strcmp( punt->tes, "char *" ) == 0 ) {
+        if ( strcmp( punt->stringa, "char *" ) == 0 ) {
             notice = 0;
 //break;
         }
-        if ( strcmp(punt->tes, "bool" ) == 0 ) {
+        if ( strcmp(punt->stringa, "bool" ) == 0 ) {
             notice = 1;
 //break;
         }
@@ -187,60 +194,60 @@ char *type_checking( testo *TT, int nr )
 tipo identico a quello dell'array dichiarato nella Symbol table.
 Gli argomento sono:
 - TT, una lista definita in utility.h che contiene tutti i tipi associati agli operandi;
-- context, indica il contesto di utilizzo di tale funzione:
+- context, indica il constringato di utilizzo di tale funzione:
 -> 'c' indica "create" ovvero la creazione di un array. La funzione con tale
-contesto è richiamata da un'azione semantica di una regola del parser;
+constringato è richiamata da un'azione semantica di una regola del parser;
 -> 's' indica "single" ossia quando è in atto un'assegnazione di un solo valore
 a un elemento di array;
 -> 'm' indica "multiple" ossia quando è in atto un'assegnazione multipla a un
 elemento di un array.
-Le funzioni con contesto 's' e 'm' sono richiamate dalla funzione check_element
+Le funzioni con constringato 's' e 'm' sono richiamate dalla funzione check_element
 spiegata più avanti;
 - exist, l'elemento ricercato precedentemente nella funzione check_element ( è l'array di
 appartenenza dell'elemento );
 - nr, il numero riga segnalato dalla variabile yylineno di Flex. */
-void type_array_checking( testo *TT, char context, element_ptr exist, int nr ) {
-    testo *punt = TT;
+void type_array_checking( listaStringhe *TT, char context, element_ptr exist, int nr ) {
+    listaStringhe *punt = TT;
     char *tipo;
 
-//get_testo( TT, "TIPI" );
+//stampa_lista( TT, "TIPI" );
 
     switch ( context ) {
 //Controlla la creazione degli array: omogeneità dei tipi
     case 'c':
         if ( TT != NULL )
-            tipo = punt->tes;
+            tipo = punt->stringa;
         while ( TT != NULL ) {
-            if ( strcmp( TT->tes, tipo ) != 0 )
+            if ( strcmp( TT->stringa, tipo ) != 0 )
             {
                 printf( "\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: l'uso di un operando di tipo non omogeneo in un array tipizzato non è corretto nel linguaggio target C.\033[00m\n", nr );
                 printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
                 pulizia( );
-                exit( 0 );
+                //exit( 0 );
             }
             TT = TT->next;
         }
-//get_testo( TT );
+//stampa_lista( TT );
         break;
 //assegnazione singola
     case 's':
-        if ( strcmp( exist->type, TT->tes ) != 0 ) {
+        if ( strcmp( exist->type, TT->stringa ) != 0 ) {
             printf( "\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: l'assegnazione viola l'omogeneità degli elementi dell'array \"%s\".\033[00m\n", nr, exist->nameToken );
             printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
             pulizia( );
-            exit( 0 );
+            //exit( 0 );
         }
         break;
 //assegnazione multipla ( espressioni )
     case 'm':
         tipo = exist->type;
         while ( TT != NULL ) {
-            if ( strcmp( TT->tes, tipo ) != 0 )
+            if ( strcmp( TT->stringa, tipo ) != 0 )
             {
                 printf( "\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: l'assegnazione viola l'omogeneità degli elementi dell'array \"%s\".\033[00m\n", nr, exist->nameToken );
                 printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
                 pulizia( );
-                exit( 0 );
+                //exit( 0 );
             }
             TT = TT->next;
         }
@@ -288,7 +295,7 @@ void check_index( char *nameToken, char *offset, int nr ) {
         printf( "\033[01;31m\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: variabile \"%s\" non definita.\033[00m\n", nr, nameToken );
         printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
         pulizia( );
-        exit( 0 );
+        //exit( 0 );
     } else {
 //mediante la funzione isnumeric contenuta nel file utility.h ci si accerta che l'offset sia un numero
         if ( isnumeric( offset ) ) {
@@ -308,7 +315,7 @@ void check_index( char *nameToken, char *offset, int nr ) {
                     printf( "\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: l'uso di un elemento con offset non intero non è ammissibile.\033[00m\n", nr);
                     printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
                     pulizia( );
-                    exit( 0 );
+                    //exit( 0 );
                 }
 //la funzione atoi converte il valore della variabile nel corrispondente valore intero.
                 index = atoi( exist_index->value );
@@ -317,7 +324,7 @@ void check_index( char *nameToken, char *offset, int nr ) {
                 printf( "\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: variabile \"%s\" non definita.\033[00m\n", nr, offset );
                 printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
                 pulizia( );
-                exit( 0 );
+                //exit( 0 );
             }
         }
         /*se l'indice è minore di 0 o maggiore della dimensione specificata nella Symbol
@@ -345,7 +352,7 @@ inserito nella lista T ( Tipi ).
 richiamata dopo la creazione dell'espressione di assegnazione con valore read = false.
 Poichè l'espressione è stata generata avremo a disposizione la lista T, e in base al
 numero di elementi presenti verrà chiamata la funzione type_array_checking nel
-contesto
+constringato
 's' o 'm' per un controllo sull'omogeneità dei tipi.
 Gli argomento sono:
 - nameToken, il nome della variabile o dell'elemento di un array;
@@ -368,27 +375,27 @@ element_ptr check_element( char *nameToken, char *offset, int nr, bool read )
         printf( "\033[01;31m\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: variabile \"%s\" non definita.\033[00m\n", nr, nameToken );
         printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
         pulizia( );
-        exit( 0 );
+       //exit( 0 );
 
     } else {
 //se è una variabile di sola lettura o una costante lo aggiungo alle liste T ed Exp ( Espressione ).
         if ( ( ( strcmp( exist->element, "variable" ) == 0 ) || ( strcmp( exist->element, "constant" ) == 0 ) ) && read ) {
 //aggiungo il tipo dell'elemento alla lista T.
-            put_testo( &T, exist->type );
+            ins_in_lista( &listaTipi, exist->type );
 //aggiungo il nome dell'elemento alla lista Exp.
-            put_testo( &Exp, exist->nameToken );
+            ins_in_lista( &espressioni, exist->nameToken );
         } else {
-//se è un elemento di un array di sola lettura ( non è un assegnazione a se stesso ) lo aggiungo alle liste T ed Exp ( Espressione ).
+//se è un elemento di un array di sola lettura ( non è un assegnazione a se sstringaso ) lo aggiungo alle liste T ed Exp ( Espressione ).
             if ( read ) {
 //aggiungo il tipo dell'elemento alla lista T.
-                put_testo( &T, exist->type );
+                ins_in_lista( &listaTipi, exist->type );
 //viene legato al nome dell'array ( identificato dal nameToken ) l'offset: nome[offset]. Successivamente aggiungo il nome composto alla lista Exp.
                 el_array = nameToken;
                 strcat(el_array, "[");
                 strcat(el_array, offset);
                 strcat(el_array, "]");
                 strcat(el_array, "\0");
-                put_testo( &Exp, el_array );
+                ins_in_lista( &espressioni, el_array );
             }
 //mediante la funzione isnumeric contenuta nel file utility.h ci si accerta che l'offset sia un numero
             if ( isnumeric( offset ) ) {
@@ -407,7 +414,7 @@ element_ptr check_element( char *nameToken, char *offset, int nr, bool read )
                         printf( "\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: l'uso di un elemento con offset non intero non è ammissibile.\033[00m\n", nr);
                         printf( "\n\n\033[01;31mParsing fallito.\033[00m \n" );
                         pulizia( );
-                        exit( 0 );
+                        //exit( 0 );
                     }
 //la funzione atoi converte il valore della variabile nel corrispondente valore intero.
                     index = atoi( exist_index->value );
@@ -416,7 +423,7 @@ element_ptr check_element( char *nameToken, char *offset, int nr, bool read )
                     printf( "\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: variabile \"%s\" non definita.\033[00m\n", nr, offset );
                     printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
                     pulizia( );
-                    exit( 0 );
+                    //exit( 0 );
                 }
             }
 
@@ -427,20 +434,20 @@ element_ptr check_element( char *nameToken, char *offset, int nr, bool read )
                 notice = 4;
             }
 
-//get_testo( T, "TIPI" );
+//stampa_lista( T, "TIPI" );
 
             /*se la lista T non è vuota e se sto assegnando un valore all'elemento
             di un array ( scrittura, read = false ), sulla base del numero di elementi nella lista T
-            effettuo un controllo sull'omogeneità dei tipi, secondo il contesto 's' o 'm'.*/
-            if ( countelements( T ) != 0 && !read ) {
+            effettuo un controllo sull'omogeneità dei tipi, secondo il constringato 's' o 'm'.*/
+            if ( countelements( listaTipi ) != 0 && !read ) {
 
-                switch ( countelements( T ) ) {
+                switch ( countelements( listaTipi ) ) {
                 case 1:
-                    type_array_checking( T, 's', exist, nr );
+                    type_array_checking( listaTipi, 's', exist, nr );
                     break;
 
                 default:
-                    type_array_checking( T, 'm', exist, nr );
+                    type_array_checking( listaTipi, 'm', exist, nr );
                     break;
                 }
             }
@@ -452,7 +459,7 @@ element_ptr check_element( char *nameToken, char *offset, int nr, bool read )
 
 /** La funzione echo_check verifica se le variabili, gli elementi di un array o le costanti
 specificate nell'istruzione echo esistono o meno nella Symbol table. Nel caso degli elementi
-di un array viene controllato l'offset secondo le stesse modalità descritte in precedenza.
+di un array viene controllato l'offset secondo le sstringase modalità descritte in precedenza.
 Sulla base del tipo di variabile analizzata vengono assegnate alle liste Exp e Phrase
 (definite nel file utility.h) rispettivamente gli elementi e la frase che saranno
 successivamente tradotti nella funzione C printf mediante la funzione gen_echo ( contenuta
@@ -474,15 +481,15 @@ void echo_check( char *nameToken, char *offset, int nr )
         printf( "\033[01;31m\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: variabile \"%s\" non definita.\033[00m\n", nr, nameToken );
         printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
         pulizia( );
-        exit( 0 );
+       //exit( 0 );
     } else {
-//se l'elemento esiste e se è un array vengono effettuati gli stessi controlli sull'offset.
+//se l'elemento esiste e se è un array vengono effettuati gli sstringasi controlli sull'offset.
         if ( strcmp( exist->element, "array" ) == 0 ) {
             if ( offset == NULL ) {
                 printf( "\033[01;31m\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: offset non definito.\033[00m\n", nr );
                 printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
                 pulizia( );
-                exit( 0 );
+                //exit( 0 );
             }
             if ( isnumeric( offset ) ) {
                 index = atoi( offset );
@@ -498,7 +505,7 @@ void echo_check( char *nameToken, char *offset, int nr )
                         printf( "\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: l'uso di un elemento con offset non intero non è ammissibile.\033[00m\n", nr);
                         printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
                         pulizia( );
-                        exit( 0 );
+                       //exit( 0 );
                     }
 //la funzione atoi converte il valore della variabile nel corrispondente valore intero.
                     index = atoi( exist_index->value );
@@ -506,7 +513,7 @@ void echo_check( char *nameToken, char *offset, int nr )
                     printf( "\033[01;31m\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: variabile \"%s\" non definita.\033[00m\n", nr, nameToken );
                     printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
                     pulizia( );
-                    exit( 0 );
+                    //exit( 0 );
                 }
             }
 //l'offset viene legato al nome dell'array ( identificato dal nameToken ): nome[offset].
@@ -522,10 +529,10 @@ void echo_check( char *nameToken, char *offset, int nr )
                 strcpy( c, "( " );
                 strcat( c, el_array );
                 strcat( c, tmp );
-                put_testo( &Exp, c );
+                ins_in_lista( &espressioni, c );
                 free( c );
             } else
-                put_testo( &Exp, el_array );
+                ins_in_lista( &espressioni, el_array );
 
             if ( index < 0 || index >= exist->dim ) {
                 notice = 5;
@@ -540,20 +547,20 @@ void echo_check( char *nameToken, char *offset, int nr )
                 strcpy( c, "( " );
                 strcat( c, nameToken );
                 strcat( c, tmp );
-                put_testo( &Exp, c );
+                ins_in_lista( &espressioni, c );
                 free( c );
             } else
-                put_testo( &Exp, nameToken );
+                ins_in_lista( &espressioni, nameToken );
         }
 
-        /*in base al tipo dell'elemento viene aggiunto alla lista testo il giusto
+        /*in base al tipo dell'elemento viene aggiunto alla lista stringato il giusto
         identificatore di variabili utilizzato dal C nella funzione printf.*/
         if ( strcmp( exist->type, "int" ) == 0 )
-            put_testo( &Phrase, " %i " );
+            ins_in_lista( &frasi, " %i " );
         else if ( strcmp( exist->type, "float" ) == 0 )
-            put_testo( &Phrase, " %f " );
+            ins_in_lista( &frasi, " %f " );
         else
-            put_testo( &Phrase, " %s " );
+            ins_in_lista( &frasi, " %s " );
 
     }
 }
@@ -593,8 +600,9 @@ char *isconstant( char *string, int nr )
         printf( "\033[01;31mRiga %i. [ FATALE ] ERRORE SEMANTICO: stringa \"%s\" non riconosciuta.\033[00m\r\n", nr, string );
         printf( "\n\n\033[01;31mParsing fallito.\033[00m\n" );
         pulizia( );
-        exit( 0 );
+       // exit( 0 );
     }
 
     return current_type;
 }
+
