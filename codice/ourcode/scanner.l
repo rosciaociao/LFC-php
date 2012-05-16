@@ -23,23 +23,23 @@ char * escapeNewline(char * str){
   char * s = str;  
   int i = -1 , j = 0, count = 0, lung = strlen(s);
   while( ++i < lung ) 	//conta i newline effettivi
-      if (s[i]=='\n')
+      if (s[i]== 0x0A || s[i] == 0x0D  )
 	count++;
   i = 0;
   if(count > 0){
     int dim = count + lung;
     char * snew = (char *) malloc(sizeof(char) * dim);
     int cicla = -1;
-    while( ++cicla < dim ){
-      if ( s[i] == '\n' ){
-	snew[j++] = '\\';
-	snew[j++] = 'n';
-	i++;
-      }
-      else if ( s[i] == '\r' && s[i+1] == '\n'){
+    while( ++cicla < lung ){
+      if ( (s[i] == 0x0D && s[i+1] == 0x0A) || (s[i] == 0x0A && s[i+1] == 0x0D) ){
 	snew[j++] = '\\';
 	snew[j++] = 'n';
 	i += 2;
+      }
+      else if ( s[i] == 0x0A || s[i] == 0x0D ){
+	snew[j++] = '\\';
+	snew[j++] = 'n';
+	i++;
       }
       else
 	snew[j++]=s[i++];
