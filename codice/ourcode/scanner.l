@@ -19,19 +19,25 @@
 char * escapeNewline(char * str){
   if(yy_flex_debug)
     printf("--Esecuzione della funzione escapeNewline sulla stringa %s: \n", str);
-  //char *s = ( char * )strdup( yytext ); //duplicazione locale della stringa
   char * s = str;  
-  int i = -1 , j = 0, count = 0, lung = strlen(s);
-  while( ++i < lung ) 	//conta i newline effettivi
-      if (s[i]== 0x0A || s[i] == 0x0D  )
-	count++;
+  int i = -1 , j = 0, count = 0, lung = strlen(s), found = 0;
+  while( ++i < lung ){ 	//conta i newline effettivi
+     if ( s[i] == 0x0D && s[i+1] == 0x0A ){
+	i += 2; 
+	found = 1;
+     }
+     else if( s[i] == 0x0A || s[i] == 0x0D ){
+        count++;
+	found = 1;
+     }
+  }
   i = 0;
-  if(count > 0){
+  if(found){
     int dim = count + lung;
     char * snew = (char *) malloc(sizeof(char) * dim);
     int cicla = -1;
     while( ++cicla < lung ){
-      if ( (s[i] == 0x0D && s[i+1] == 0x0A) || (s[i] == 0x0A && s[i+1] == 0x0D) ){
+      if ( s[i] == 0x0D && s[i+1] == 0x0A ){
 	snew[j++] = '\\';
 	snew[j++] = 'n';
 	i += 2;
@@ -43,7 +49,7 @@ char * escapeNewline(char * str){
       }
       else
 	snew[j++]=s[i++];
-    }
+    }    
     snew[dim] = '\0';
     return snew; 
   }
