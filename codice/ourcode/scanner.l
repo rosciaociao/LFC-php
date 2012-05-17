@@ -16,6 +16,49 @@
 #include <stdio.h>
 #include "parser.h"
 
+char * escapeNewline(char * str){
+  if(yy_flex_debug)
+    printf("--Esecuzione della funzione escapeNewline sulla stringa %s: \n", str);
+  char * s = str;  
+  int i = -1 , j = 0, count = 0, lung = strlen(s), found = 0;
+  while( ++i < lung ){ 	//conta i newline effettivi
+     if ( s[i] == 0x0D && s[i+1] == 0x0A ){
+	i += 2; 
+	found = 1;
+     }
+     else if( s[i] == 0x0A || s[i] == 0x0D ){
+        count++;
+	found = 1;
+     }
+  }
+  i = 0;
+  if(found){
+    int dim = count + lung;
+    char * snew = (char *) malloc(sizeof(char) * dim);
+    int cicla = -1;
+    while( ++cicla < lung ){
+      if ( s[i] == 0x0D && s[i+1] == 0x0A ){
+	snew[j++] = '\\';
+	snew[j++] = 'n';
+	i += 2;
+      }
+      else if ( s[i] == 0x0A || s[i] == 0x0D ){
+	snew[j++] = '\\';
+	snew[j++] = 'n';
+	i++;
+      }
+      else
+	snew[j++]=s[i++];
+    }    
+    snew[dim] = '\0';
+    return snew; 
+  }
+  else{
+    return s;
+  } 
+
+}
+
 %}
 /* Parte dedicata alla definizione degli stati iniziali; (%x) indica che sono esclusivi,
  * ovvero non attivi simultaneamente. Flex avvia la scansione dallo stato INITIAL, richiamabile
@@ -500,35 +543,8 @@ lineno++;
 
  /** Regola identificare una stringa di letterali tra virgolette */
 <ST_IN_SCRIPTING>(["]([^$_"\\]|("\\".))*["]) {
- char *s = ( char * )strdup( yytext );
- char *sx = ( char * )strdup( yytext );
- int i = 0 , j = 0, count = 0;
- char s2[] = "\\n";
- int lung = strlen(s);
- while( lung-- > 0 ){
-  if (s[i]=='\n')
-    count++;
- i++;
- }
- char * s1 = (char *) malloc(sizeof(char)*(count + lung + 2));
- lung = strlen(sx);
- i = 0;
- while( lung-- > 0 ){
-  if (sx[i]=='\n'){
-    strcat(s1,s2);
-    j+=2;
-    i++;
-  }
-  else if ( sx[i]=='\r' && sx[i+1] == '\n'){
-    strcat(s1,s2);
-    j+=2;
-    i+=2;
-  }
-  else
-    s1[j++]=sx[i++];
- }
-  yylval.id = ( char * )strdup( s1 );
-  return T_CONSTANT_ENCAPSED_STRING;
+ yylval.id = escapeNewline(yytext);
+ return T_CONSTANT_ENCAPSED_STRING;
 }
 
  /** Regola identificare una stringa costante di letterali tra singolo apice */
