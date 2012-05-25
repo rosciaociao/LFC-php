@@ -19,7 +19,7 @@
 char * escapeNewline(char * str){
   if(yy_flex_debug)
     printf("--Esecuzione della funzione escapeNewline sulla stringa %s: \n", str);
-  char * s = str;  
+  char * s = (char *) strdup(str);  
   int i = -1 , j = 0, count = 0, lung = strlen(s), found = 0;
   while( ++i < lung ){ 	//conta i newline effettivi
      if ( s[i] == 0x0D && s[i+1] == 0x0A ){
@@ -106,7 +106,10 @@ int comment_start_line = 0;
 %}
 
 /** Definizione della regex che matcha uno o più digit numeriche*/
-LNUM [-+]?[0-9]+
+LNUM [0-9]+
+
+/** Definizione della regex che matcha uno o più digit numeriche con segno*/
+SNUM [-+]?[0-9]+
 /** Definizione della regex che matcha una o più digit numerica negativa, nella forma (-n), con n intero da 0 a 9 
 NLNUM ("(-")[0-9]+(")")*/
 /** Definizione della regex che matcha una floating del tipo [n].n oppure n.[n], 
@@ -319,6 +322,13 @@ NEWLINE ("\r"|"\n"|"\r\n")
 <ST_IN_SCRIPTING>{LNUM} {
   yylval.id = ( char * )strdup( yytext );
   return T_LNUMBER;
+}
+
+ /** Regola per non terminali costituiti da interi con segno*/
+<ST_IN_SCRIPTING>{SNUM} {
+  yylval.id = ( char * )strdup( yytext );
+printf("\n il S_LNUMBER è :%s \n", yylval.id);
+  return T_SNUMBER;
 }
 
  /** Regola per interi (anche negativi) nel contesto di una stringa */
@@ -544,6 +554,8 @@ lineno++;
  /** Regola identificare una stringa di letterali tra virgolette */
 <ST_IN_SCRIPTING>(["]([^$_"\\]|("\\".))*["]) {
  yylval.id = escapeNewline(yytext);
+ //char *s=( char * )malloc( ( strlen( yytext ) - 1 )*sizeof( char ) );
+ //yylval.id = s;
  return T_CONSTANT_ENCAPSED_STRING;
 }
 

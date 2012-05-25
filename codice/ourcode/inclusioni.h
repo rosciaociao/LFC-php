@@ -23,14 +23,23 @@ char * fout;
 
 /** Puntatore al file di log */
  FILE *log_file;
-
+ 
 /** Struttura per il tipo di dato booleano  */
 typedef enum { false, true } bool; 
+
+ bool inFunction = false;
+ 
+ char * lastFunction;
+
 
 /** Flag per abilitare il logging su file */
 bool logging;
 
+/** Puntatori allo standard input ed error utili per il ripristono in console dopo il logging su file */
 FILE *tmpStderr, *tmpStdout;
+
+/** Procedura che inserirsce nel file passato un newline o un backslash */
+void insertNewLine(FILE* f_ptr);
 
 /** Nuovo tipo di dato "listaStringhe" come lista concatenata di stringhe. */
 typedef struct listaStringhe 
@@ -75,18 +84,24 @@ void stampaMsg(const char * str, const char * col){
   if(logging == false){
     if(strcmp(col,"blue") == 0)
       printf("\033[01;34m");
+    else if(strcmp(col,"azure") == 0)
+      printf("\033[01;36m");
     else if(strcmp(col,"yellow") == 0)
       printf("\033[01;33m");
     else if(strcmp(col,"green") == 0)
       printf("\033[01;32m");
     else if(strcmp(col,"purple") == 0)
       printf("\033[01;35m");
+    else if(strcmp(col,"white") == 0)
+      printf("\033[01;37m");
+    else if(strcmp(col,"none") == 0)
+      printf("\033[0m");
     else
       printf("\033[01;31m");  
   }
   printf("%s",str);
   if(logging == false)
-    printf("\033[00m"); 
+    printf("\033[0m"); 
 }
 
 
@@ -214,7 +229,7 @@ void eliminaOutputFile( FILE *f_ptr ) {
     if ( f_ptr != NULL )
         chiudiOutputFile( f_ptr );
     if ( remove( fout ) == -1 )
-        stampaMsg("[ERRORE]: impossibile eliminare il file traduzione.c", "red");
+        stampaMsg("[ERRORE]: impossibile eliminare il file di traduzione", "red");
 }
 
 /** 	La funzione eliminaFile elimina il file di traduzione. Essa è richiamata 
@@ -286,16 +301,16 @@ char *gen_expression( listaStringhe *Exp ) {
     return expression;
 }
 
-/**	La funzione gen_echo_expression è simile alla precedente ma finalizzata alla creazione di
+/**	La funzione genecho_expression è simile alla precedente ma finalizzata alla creazione di
  * 	espressioni per l'istruzione echo.
  * 	Gli argomenti sono:
  * 	- f_ptr, il puntatore al file nel quale stampare la traduzione;
  * 	- Exp, la lista contenenti gli elementi delle espressioni.
  * 	Restituisce l'espressione. 
  */
-char *gen_echo_expression( FILE* f_ptr, listaStringhe *Exp ) {
+char * gen_echo_expression( FILE* f_ptr, listaStringhe *Exp ) {
     char *expression = NULL;
-//se gli elementi sono in numero maggioe di uno è prevista la stampa della ",".
+//se gli elementi sono in numero maggiore di uno è prevista la stampa della ",".
     int elements = countelements( Exp );
 
 //get_listaStringhe( Exp, "GEN ECHO ESPR" );
@@ -424,25 +439,36 @@ void gen_switch( FILE* f_ptr, listaStringhe *Exp ) {
     fprintf( f_ptr, "switch( %s ) {\n", expression );
 }
 
-/** 	La funzione gen_echo genera l'istruzione di stampa a video printf.
+/** 	La funzione genEcho mappa la funzione di echo PHP in una printf C.
  * 	Gli argomenti sono:
- * 	- f_ptr, il puntatore al file nel quale stampare la traduzione;
- * 	- Exp, la lista contenenti gli elementi delle espressioni;
+ * 	- f_ptr, il puntatore al file di traduzione;
+ * 	- expr, la lista di supporto contenente i chunck delle espressioni;
  * 	- frasi, la lista contenenti gli elementi della frase da associare all'espressione. 
  */
-void gen_echo( FILE* f_ptr, listaStringhe *Exp, listaStringhe *frasi ) {
-    char *phrase = gen_expression( frasi );
-    char *expression = gen_echo_expression( f_ptr, Exp );
+void genEcho( FILE* f_ptr, listaStringhe *expr, listaStringhe *frasi ) {
+    char * phrase = gen_expression( frasi );
+    char * expression = gen_echo_expression( f_ptr, expr );
 
     if ( phrase != NULL && expression != NULL )
-        fprintf( f_ptr, "printf( \"%s\", %s );\n", phrase, expression );
+        fprintf( f_ptr, "printf(\"%s\",%s);", phrase, expression );
     else if ( phrase != NULL )
-        fprintf( f_ptr, "printf( \"%s\" );\n", phrase );
+        fprintf( f_ptr, "printf(\"%s\");", phrase );
     else
-        fprintf( f_ptr, "printf( %s );\n", expression );
+        fprintf( f_ptr, "printf(%s);", expression );
+    insertNewLine(f_ptr);
 }
 
-/**	La funzione gen_tab genera il simbolo tab "\t".
+/** Procedura che appende un newline al file in uscita oppure un
+ *  backslash se nel contesto di una funzione in uscita
+ */ 
+void insertNewLine(FILE* f_ptr){
+  if(lastFunction != NULL)
+    fprintf( f_ptr, "\t\t\\\n" );
+  else
+    fprintf( f_ptr, "\n" );
+}
+
+/** Funzione che inserisce ntab tabulazioni nel file di uscita
  * 	Gli argomenti sono:
  * 	- f_ptr, il puntatore al file nel quale stampare il simbolo;
  * 	- ntab, il numero di stampa del simbolo tab. 
@@ -453,6 +479,10 @@ void gen_tab( FILE *f_ptr, int ntab ) {
         fprintf( f_ptr, "\t" );
 }
 
+/** Procedura per la gestione del file di log. Avvia la scrittura sul file "parselog.log"
+ * e redirezione lo standard output e lo standard error verso il file di log, salvando 
+ * i riferimenti originali per il ripristino successivo.
+ */
 void startLog(){
   if( logging == true){
     if ( ( log_file = fopen( "parselog.log", "w" ) ) == NULL )
@@ -467,6 +497,9 @@ void startLog(){
   }
 }
 
+/** Procedura per la gestione del file di log. Termina la scrittura del file
+ * e ripristina lo standard output e lo standard error
+ */
 void stopLog(){
   if(logging == true){
     const char * timestamp = "Termine log di p2c";
@@ -478,9 +511,22 @@ void stopLog(){
   }
 }
 
+/** Procedura che inserisce una stringa nel log */
 void logThis(const char * s){
   if(logging == true){    
      fprintf(log_file, "%s", s );
-    //fprintf(log_file, "%s", "\n" );
   }
+}
+
+/** Funzione che converte un intero in una stringa con dimensione opportuna */ 
+char * itoa(int val){
+  int i = 1, count = val;
+  while( count > 10 ){
+    count /= 10;
+    i++;
+  }
+  char * ret = (char *)malloc(sizeof(char)*i+1);
+  sprintf(ret,"%d",val);
+  ret[i+1] = '\0';
+  return ret;
 }
